@@ -5,6 +5,10 @@ class Settings(BaseSettings):
     ozon_client_id: str = ""
     ozon_api_key: str = ""
     ozon_cookie: str = ""
+
+    @property
+    def ozon_cookie_clean(self) -> str:
+        return self.ozon_cookie.strip()
     ozon_base_url: str = "https://seller.ozon.ru"
 
     gemini_api_key: str = ""

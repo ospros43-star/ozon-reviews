@@ -136,6 +136,9 @@ def try_restore_session() -> bool:
         logger.warning("Куки Ozon не настроены")
         return False
 
+    # Убираем переносы строк и пробелы — Railway иногда добавляет \n в конце env var
+    _settings.ozon_cookie = _settings.ozon_cookie.strip()
+
     # Проверяем сессию реальным запросом к API
     try:
         resp = httpx.post(
