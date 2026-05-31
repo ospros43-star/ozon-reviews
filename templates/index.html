@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Дашборд — Ozon Review Bot{% endblock %}
+
+{% block content %}
+<h1>Дашборд</h1>
+
+<div class="stat-grid" id="stats-grid">
+  <div class="stat-card pending">
+    <div class="label">На проверке</div>
+    <div class="value" id="s-pending">{{ counts.get('pending_approval', 0) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Новых</div>
+    <div class="value" id="s-new">{{ counts.get('new', 0) }}</div>
+  </div>
+  <div class="stat-card posted">
+    <div class="label">Опубликовано</div>
+    <div class="value" id="s-posted">{{ counts.get('posted', 0) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Отклонено</div>
+    <div class="value" id="s-rejected">{{ counts.get('rejected', 0) }}</div>
+  </div>
+  <div class="stat-card error">
+    <div class="label">Ошибки</div>
+    <div class="value" id="s-error">{{ counts.get('error', 0) }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Всего</div>
+    <div class="value" id="s-total">{{ total }}</div>
+  </div>
+</div>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+  <h2>Последние отзывы</h2>
+  <button class="btn btn-ghost btn-sm" id="poll-btn" onclick="triggerPoll()">Проверить Ozon сейчас</button>
+</div>
+
+<div class="card" style="padding:0; overflow:hidden;">
+  <table id="reviews-table">
+    <thead>
+      <tr>
+        <th>Товар</th>
+        <th>Автор</th>
+        <th>Рейтинг</th>
+        <th>Отзыв</th>
+        <th>Статус</th>
+        <th>Дата</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="reviews-body">
+      <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">Загрузка…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  function stars(n) {
+    let s = '';
+    for (let i = 1; i <= 5; i++) s += `<span${i <= n ? '' : ' class="empty"'}>★</span>`;
+    return `<span class="stars">${s}</span>`;
+  }
+
+  function statusBadge(st) {
+    const labels = {new:'Новый', pending_approval:'На проверке', posted:'Опубликован', rejected:'Отклонён', error:'Ошибка', auto_posting:'Публикуется'};
+    return `<span class="status status-${st}">${labels[st] || st}</span>`;
+  }
+
+  async function loadReviews() {
+    const r = await fetch('/api/reviews?limit=20');
+    const d = await r.json();
+    const tbody = document.getElementById('reviews-body');
+    if (!d.items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">Отзывов пока нет</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.items.map(rv => `
+      <tr>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rv.product_name||''}">${rv.product_name || '—'}</td>
+        <td>${rv.author_name || '—'}</td>
+        <td>${stars(rv.rating)}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);" title="${(rv.review_text||'').replace(/"/g,'&quot;')}">${rv.review_text ? rv.review_text.substring(0,80)+(rv.review_text.length>80?'…':'') : '—'}</td>
+        <td>${statusBadge(rv.status)}</td>
+        <td style="white-space:nowrap;color:var(--text-muted);font-size:13px;">${rv.fetched_at ? new Date(rv.fetched_at).toLocaleDateString('ru') : '—'}</td>
+        <td><a href="/review/${rv.id}" class="btn btn-ghost btn-sm">Открыть</a></td>
+      </tr>
+    `).join('');
+  }
+
+  async function refreshStats() {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    document.getElementById('s-pending').textContent = d.pending_approval;
+    document.getElementById('s-new').textContent = d.new;
+    document.getElementById('s-posted').textContent = d.posted;
+    document.getElementById('s-rejected').textContent = d.rejected;
+    document.getElementById('s-error').textContent = d.error;
+    document.getElementById('s-total').textContent = d.total;
+  }
+
+  async function triggerPoll() {
+    const btn = document.getElementById('poll-btn');
+    btn.disabled = true;
+    btn.textContent = 'Опрашиваем…';
+    try {
+      const r = await fetch('/api/poll/trigger', {method:'POST'});
+      const d = await r.json();
+      if (d.error) { showToast('Ошибка: ' + d.error, true); }
+      else { showToast(`Получено: ${d.fetched}, авто-ответов: ${d.auto_posted}, на проверке: ${d.pending}`); }
+      await loadReviews();
+      await refreshStats();
+    } catch { showToast('Ошибка соединения', true); }
+    finally { btn.disabled = false; btn.textContent = 'Проверить Ozon сейчас'; }
+  }
+
+  loadReviews();
+  setInterval(() => { loadReviews(); refreshStats(); }, 60000);
+</script>
+{% endblock %}

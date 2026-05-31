@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — Ozon Reviews{% endblock %}
+
+{% block content %}
+<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:var(--text-muted)">
+  <div style="font-size:48px;opacity:.25">🚧</div>
+  <div style="font-size:20px;font-weight:700;color:var(--text)">{{ page_title }}</div>
+  <div style="font-size:14px;color:var(--text-muted)">Раздел в разработке</div>
+  <a href="/" class="btn btn-primary" style="margin-top:8px">На главную</a>
+</div>
+{% endblock %}

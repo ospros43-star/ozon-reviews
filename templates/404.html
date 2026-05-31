@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Страница не найдена{% endblock %}
+{% block content %}
+<div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:var(--text-muted);height:100vh;">
+  <div style="font-size:56px;opacity:.3">🔍</div>
+  <div style="font-size:18px;font-weight:600;color:var(--text)">Страница не найдена</div>
+  <div style="font-size:14px;">Эта страница не существует.</div>
+  <a href="/" class="btn btn-primary" style="margin-top:8px;">На главную</a>
+</div>
+{% endblock %}

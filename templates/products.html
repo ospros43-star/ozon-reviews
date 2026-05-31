@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+{% block title %}Товары — Ozon Reviews{% endblock %}
+
+{% block extra_styles %}
+.page-wrap { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+.prod-wrap { flex:1; min-height:0; background:var(--surface); display:flex; flex-direction:column; overflow:hidden; }
+
+/* Шапка */
+.prod-header { display:flex; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); flex-shrink:0; gap:12px; flex-wrap:wrap; }
+
+/* Вкладки */
+.prod-tabs { display:flex; gap:4px; background:var(--bg); border-radius:10px; padding:3px; }
+.prod-tab { padding:5px 14px; border-radius:8px; border:none; font-size:13px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-muted); transition:all .15s; white-space:nowrap; font-family:inherit; }
+.prod-tab.active { background:var(--surface); color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,.1); }
+.tab-cnt { display:inline-block; background:var(--surface2); color:var(--text-muted); font-size:11px; font-weight:700; border-radius:10px; padding:1px 6px; margin-left:4px; }
+.prod-tab.active .tab-cnt { background:var(--primary); color:#fff; }
+
+/* Поиск */
+.prod-search-wrap { position:relative; flex:1; max-width:360px; min-width:160px; }
+.prod-search-wrap svg { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; }
+.prod-search-wrap input { width:100%; padding:7px 30px 7px 32px; border:1px solid var(--border); border-radius:20px; font-size:13px; background:var(--bg); color:var(--text); outline:none; font-family:inherit; box-sizing:border-box; transition:border-color .15s; }
+.prod-search-wrap input:focus { border-color:var(--primary); background:var(--surface); }
+.prod-search-clear { display:none; position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:18px; line-height:1; padding:0; }
+
+/* Таблица */
+.prod-table { width:100%; border-collapse:collapse; }
+.prod-table thead th { padding:9px 14px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; border-bottom:2px solid var(--border); background:var(--surface2); text-align:left; white-space:nowrap; position:sticky; top:0; z-index:1; }
+.prod-table tbody tr { border-bottom:1px solid var(--border); cursor:pointer; transition:background .1s; }
+.prod-table tbody tr:hover { background:var(--surface2); }
+.prod-table td { padding:10px 14px; vertical-align:middle; font-size:13px; }
+.prod-thumb { width:48px; height:48px; border-radius:8px; object-fit:cover; background:var(--surface2); flex-shrink:0; }
+.prod-name-cell { max-width:420px; }
+.prod-name-text { font-weight:600; color:var(--text); line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.prod-article { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.prod-stars { display:inline-flex; gap:1px; font-size:13px; }
+.star-gold { color:var(--star-fill); }
+.star-grey { color:var(--star-empty); }
+.stock-pill { display:inline-flex; align-items:center; gap:3px; padding:3px 9px; border-radius:10px; font-size:11px; font-weight:600; white-space:nowrap; }
+.s-ok   { background:var(--green-light); color:#0a6641; }
+.s-low  { background:var(--orange-light); color:#b46a00; }
+.s-zero { background:var(--red-light); color:#9b2020; }
+
+/* Пустые состояния */
+.prod-empty { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; color:var(--text-muted); padding:60px 20px; }
+.prod-loader { flex:1; display:flex; align-items:center; justify-content:center; gap:10px; color:var(--text-muted); font-size:13px; }
+
+/* Счётчик результатов поиска */
+.search-hint { font-size:12px; color:var(--text-muted); padding:8px 20px 0; flex-shrink:0; }
+
+/* Превью картинки при наведении */
+#img-preview { position:fixed; display:none; z-index:9999; border-radius:14px; overflow:hidden; box-shadow:0 8px 40px rgba(0,0,0,.22); pointer-events:none; width:220px; background:var(--surface2); }
+#img-preview img { width:100%; height:auto; display:block; }
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="prod-wrap">
+
+    <!-- Шапка: вкладки + поиск + кнопки -->
+    <div class="prod-header">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+        <div class="prod-tabs" style="flex-shrink:0">
+          <button class="prod-tab active" id="tab-sale-btn" onclick="switchTab('sale')">
+            В продаже <span class="tab-cnt" id="cnt-sale">—</span>
+          </button>
+          <button class="prod-tab" id="tab-arch-btn" onclick="switchTab('archived')">
+            Архив <span class="tab-cnt" id="cnt-arch">—</span>
+          </button>
+        </div>
+        <div class="prod-search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="prod-search" type="text" placeholder="Поиск по названию, артикулу…" oninput="filterProducts(this.value)">
+          <button class="prod-search-clear" id="prod-search-clear" onclick="clearSearch()">×</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refresh-btn" onclick="refreshCurrent(this)" style="flex-shrink:0">⟳ Обновить</button>
+    </div>
+
+    <!-- Подсказка количества при поиске -->
+    <div class="search-hint" id="search-hint" style="display:none"></div>
+
+    <!-- Вкладка: В продаже (загружается через AJAX) -->
+    <div id="tab-sale" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <div class="prod-loader" id="sale-loader">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        Загружаем товары…
+      </div>
+      <div style="flex:1;min-height:0;overflow-y:auto;display:none" id="sale-table-wrap"></div>
+      <div class="prod-empty" id="sale-empty" style="display:none">
+        <div style="font-size:48px;opacity:.25">📦</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Товары не найдены</div>
+      </div>
+    </div>
+
+    <!-- Вкладка: Архив (загружается лениво) -->
+    <div id="tab-arch" style="display:none;flex:1;min-height:0;flex-direction:column">
+      <div class="prod-loader" id="arch-loader">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        Загружаем архивные товары…
+      </div>
+      <div style="flex:1;min-height:0;overflow-y:auto;display:none" id="arch-table-wrap"></div>
+      <div class="prod-empty" id="arch-empty" style="display:none">
+        <div style="font-size:48px;opacity:.25">🗂</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text)">Архивные товары не найдены</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="img-preview"><img src="" alt=""></div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentTab = 'sale';
+let saleData = null;
+let archivedData = null;
+
+// ── Единые Promise-ы для обоих вкладок ───────────────────────
+let _salePromise = null;
+function _getSalePromise() {
+  if (!_salePromise) {
+    _salePromise = fetch('/api/products')
+      .then(r => r.json())
+      .then(data => {
+        saleData = data;
+        document.getElementById('cnt-sale').textContent = data.length;
+        return data;
+      });
+  }
+  return _salePromise;
+}
+
+let _archivePromise = null;
+function _getArchivePromise() {
+  if (!_archivePromise) {
+    _archivePromise = fetch('/api/products/archived')
+      .then(r => r.json())
+      .then(data => {
+        archivedData = data;
+        document.getElementById('cnt-arch').textContent = data.length;
+        return data;
+      });
+  }
+  return _archivePromise;
+}
+
+// ── Переключение вкладок ──────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-sale-btn').classList.toggle('active', tab === 'sale');
+  document.getElementById('tab-arch-btn').classList.toggle('active', tab === 'archived');
+  document.getElementById('tab-sale').style.display = tab === 'sale' ? 'flex' : 'none';
+  document.getElementById('tab-arch').style.display = tab === 'archived' ? 'flex' : 'none';
+
+  if (tab === 'archived') loadArchived();
+  else loadSale();
+}
+
+// ── Поиск ────────────────────────────────────────────────────
+function filterProducts(q) {
+  const cl = document.getElementById('prod-search-clear');
+  cl.style.display = q ? 'block' : 'none';
+  q = q.trim().toLowerCase();
+  if (currentTab === 'sale') applySaleSearch(q);
+  else applyArchSearch(q);
+}
+
+function clearSearch() {
+  document.getElementById('prod-search').value = '';
+  document.getElementById('prod-search-clear').style.display = 'none';
+  document.getElementById('search-hint').style.display = 'none';
+  if (currentTab === 'sale') applySaleSearch('');
+  else applyArchSearch('');
+}
+
+function applySaleSearch(q) {
+  const rows = document.querySelectorAll('#sale-tbody tr');
+  if (!rows.length) return;
+  let visible = 0;
+  rows.forEach(row => {
+    const match = !q || row.dataset.name.includes(q) || row.dataset.sku.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const hint = document.getElementById('search-hint');
+  if (q) {
+    hint.style.display = 'block';
+    hint.textContent = `Найдено: ${visible} из ${rows.length}`;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+function applyArchSearch(q) {
+  if (!archivedData) return;
+  const rows = document.querySelectorAll('#arch-tbody tr');
+  let visible = 0;
+  rows.forEach(row => {
+    const match = !q || row.dataset.name.includes(q) || row.dataset.sku.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const hint = document.getElementById('search-hint');
+  if (q) {
+    hint.style.display = 'block';
+    hint.textContent = `Найдено: ${visible} из ${rows.length}`;
+  } else {
+    hint.style.display = 'none';
+  }
+}
+
+// ── Загрузка товаров в продаже ───────────────────────────────
+async function loadSale() {
+  if (document.getElementById('sale-tbody')) {
+    document.getElementById('sale-loader').style.display = 'none';
+    document.getElementById('sale-table-wrap').style.display = 'block';
+    const q = document.getElementById('prod-search').value.trim().toLowerCase();
+    if (q) applySaleSearch(q);
+    return;
+  }
+  document.getElementById('sale-loader').style.display = 'flex';
+  document.getElementById('sale-table-wrap').style.display = 'none';
+  document.getElementById('sale-empty').style.display = 'none';
+  try {
+    const data = await _getSalePromise();
+    if (!data.length) {
+      document.getElementById('sale-loader').style.display = 'none';
+      document.getElementById('sale-empty').style.display = 'flex';
+      return;
+    }
+    renderSaleTable(data);
+    document.getElementById('sale-loader').style.display = 'none';
+    document.getElementById('sale-table-wrap').style.display = 'block';
+    const q = document.getElementById('prod-search').value.trim().toLowerCase();
+    if (q) applySaleSearch(q);
+  } catch {
+    document.getElementById('sale-loader').innerHTML =
+      '<span style="color:var(--red)">Ошибка загрузки — попробуйте обновить</span>';
+  }
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderSaleTable(data) {
+  const rows = data.map(p => {
+    const imgHtml = p.image
+      ? `<img class="prod-thumb" src="${esc(p.image)}" alt="" loading="lazy" onerror="this.src=''">`
+      : `<div class="prod-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>`;
+
+    let stars = '';
+    if (p.avg_rating) {
+      for (let i = 1; i <= 5; i++)
+        stars += `<span class="${i <= Math.round(p.avg_rating) ? 'star-gold' : 'star-grey'}">★</span>`;
+    }
+    let ratingHtml = p.avg_rating
+      ? `<div style="display:flex;flex-direction:column;gap:5px">
+           <div style="display:flex;align-items:center;gap:5px">
+             <div class="prod-stars" style="font-size:12px">${stars}</div>
+             <span style="font-weight:700;color:var(--text)">${p.avg_rating}</span>
+             <span style="font-size:11px;color:var(--text-muted)">(${p.review_count})</span>
+           </div>`
+      : '<span style="color:var(--text-light);font-size:12px">Нет отзывов</span>';
+
+    if (p.avg_rating && p.avg_rating_7d) {
+      const delta = p.avg_rating_7d - p.avg_rating;
+      const col = delta >= 0.05 ? 'var(--green)' : delta <= -0.05 ? 'var(--red)' : 'var(--text-muted)';
+      const arrow = delta >= 0.05 ? '↑' : delta <= -0.05 ? '↓' : '→';
+      const sign = delta >= 0.05 ? '+' : '';
+      const deltaStr = Math.abs(delta) >= 0.05 ? `<span style="font-size:10px;color:${col};font-weight:600">${sign}${delta.toFixed(1)}</span>` : '';
+      ratingHtml += `<div style="display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border-radius:8px;padding:2px 8px;width:fit-content">
+        <span style="font-size:11px;font-weight:800;color:${col}">${arrow}</span>
+        <span style="font-size:12px;font-weight:700;color:${col}">${p.avg_rating_7d}</span>
+        ${deltaStr}
+        <span style="font-size:10px;color:var(--text-muted)">7 дн. (${p.review_count_7d})</span>
+      </div>`;
+    }
+    if (p.avg_rating) ratingHtml += '</div>';
+
+    const sc = p.stock > 10 ? 's-ok' : p.stock > 0 ? 's-low' : 's-zero';
+    const st = p.stock > 0 ? `${p.stock} шт` : 'Нет';
+    const res = p.reserved > 0 ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${p.reserved} резерв</div>` : '';
+    const price = p.price ? `<span style="font-weight:600">${Math.round(p.price).toLocaleString('ru-RU')} ₽</span>` : '—';
+
+    return `<tr data-name="${esc((p.name||'').toLowerCase())}" data-sku="${esc((p.offer_id||'').toLowerCase())}"
+        onclick="window.open('https://www.ozon.ru/product/${p.sku||p.id}/', '_blank')">
+      <td>${imgHtml}</td>
+      <td class="prod-name-cell">
+        <div class="prod-name-text">${esc(p.name||'')}</div>
+        <div class="prod-article">${esc(p.offer_id||'')}</div>
+      </td>
+      <td>${ratingHtml}</td>
+      <td>${price}</td>
+      <td><span class="stock-pill ${sc}">${st}</span>${res}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sale-table-wrap').innerHTML = `
+    <table class="prod-table">
+      <thead><tr>
+        <th style="width:60px">Фото</th>
+        <th>Название</th>
+        <th style="width:220px">Рейтинг</th>
+        <th style="width:110px">Цена</th>
+        <th style="width:130px">Остаток</th>
+      </tr></thead>
+      <tbody id="sale-tbody">${rows}</tbody>
+    </table>`;
+}
+
+// ── Загрузка архивных товаров ─────────────────────────────────
+async function loadArchived() {
+  // Если таблица уже нарисована — просто показываем
+  if (document.getElementById('arch-tbody')) {
+    document.getElementById('arch-loader').style.display = 'none';
+    document.getElementById('arch-table-wrap').style.display = 'block';
+    const q = document.getElementById('prod-search').value.trim().toLowerCase();
+    if (q) applyArchSearch(q);
+    return;
+  }
+
+  document.getElementById('arch-loader').style.display = 'flex';
+  document.getElementById('arch-table-wrap').style.display = 'none';
+  document.getElementById('arch-empty').style.display = 'none';
+
+  try {
+    // Используем единый Promise — не дублируем HTTP-запрос
+    const data = await _getArchivePromise();
+
+    if (!data.length) {
+      document.getElementById('arch-loader').style.display = 'none';
+      document.getElementById('arch-empty').style.display = 'flex';
+      return;
+    }
+
+    renderArchTable(data);
+    document.getElementById('arch-loader').style.display = 'none';
+    document.getElementById('arch-table-wrap').style.display = 'block';
+
+    const q = document.getElementById('prod-search').value.trim().toLowerCase();
+    if (q) applyArchSearch(q);
+  } catch {
+    document.getElementById('arch-loader').innerHTML =
+      '<span style="color:var(--red)">Ошибка загрузки — попробуйте обновить</span>';
+  }
+}
+
+function starsHtml(avg, cnt) {
+  if (!avg) return '<span style="color:var(--text-light);font-size:12px">Нет отзывов</span>';
+  let stars = '';
+  for (let i = 1; i <= 5; i++) {
+    stars += `<span class="${i <= Math.round(avg) ? 'star-gold' : 'star-grey'}">★</span>`;
+  }
+  return `<div style="display:flex;align-items:center;gap:5px">
+    <div class="prod-stars">${stars}</div>
+    <span style="font-weight:600;color:var(--text)">${avg}</span>
+    <span style="font-size:11px;color:var(--text-muted)">(${cnt})</span>
+  </div>`;
+}
+
+function renderArchTable(data) {
+  const rows = data.map(p => `
+    <tr data-name="${(p.name || '').toLowerCase()}" data-sku="${(p.offer_id || '').toLowerCase()}"
+        onclick="window.open('https://www.ozon.ru/product/${p.sku || p.id}/', '_blank')">
+      <td>${p.image
+        ? `<img class="prod-thumb" src="${p.image}" alt="" loading="lazy" onerror="this.src=''">`
+        : `<div class="prod-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>`}
+      </td>
+      <td class="prod-name-cell">
+        <div class="prod-name-text">${p.name || '—'}</div>
+        <div class="prod-article">${p.offer_id || ''}</div>
+      </td>
+      <td>${starsHtml(p.avg_rating, p.review_count)}</td>
+      <td><span style="color:var(--text-muted);font-size:12px">Архив</span></td>
+    </tr>`).join('');
+
+  document.getElementById('arch-table-wrap').innerHTML = `
+    <table class="prod-table">
+      <thead>
+        <tr>
+          <th style="width:60px">Фото</th>
+          <th>Название</th>
+          <th style="width:140px">Рейтинг</th>
+          <th style="width:110px">Статус</th>
+        </tr>
+      </thead>
+      <tbody id="arch-tbody">${rows}</tbody>
+    </table>`;
+}
+
+// ── Обновление ────────────────────────────────────────────────
+async function refreshCurrent(btn) {
+  btn.disabled = true; btn.textContent = '⟳ Загружаем…';
+  try {
+    if (currentTab === 'sale') {
+      await fetch('/api/products/refresh', {method:'POST'});
+      saleData = null; _salePromise = null;
+      document.getElementById('sale-table-wrap').innerHTML = '';
+      await loadSale();
+    } else {
+      await fetch('/api/products/archived/refresh', {method:'POST'});
+      archivedData = null; _archivePromise = null;
+      document.getElementById('arch-table-wrap').innerHTML = '';
+      await loadArchived();
+    }
+  } catch {/* ignore */}
+  btn.disabled = false; btn.textContent = '⟳ Обновить';
+}
+
+// ── Старт ─────────────────────────────────────────────────────
+loadSale();
+_getArchivePromise().catch(() => {}); // предзагружаем счётчик архива
+
+// ── Превью картинки при наведении ────────────────────────────
+const _preview = document.getElementById('img-preview');
+const _previewImg = _preview.querySelector('img');
+
+document.addEventListener('mouseover', e => {
+  const thumb = e.target.closest('img.prod-thumb');
+  if (!thumb || !thumb.src || thumb.naturalWidth === 0) return;
+  _previewImg.src = thumb.src;
+  _preview.style.display = 'block';
+});
+
+document.addEventListener('mousemove', e => {
+  if (_preview.style.display === 'none') return;
+  const x = e.clientX + 18;
+  const y = e.clientY - 110;
+  _preview.style.left = Math.min(x, window.innerWidth - 238) + 'px';
+  _preview.style.top  = Math.max(8, y) + 'px';
+});
+
+document.addEventListener('mouseout', e => {
+  if (!e.target.closest('img.prod-thumb')) return;
+  if (!e.relatedTarget || !e.relatedTarget.closest('img.prod-thumb')) {
+    _preview.style.display = 'none';
+  }
+});
+</script>
+{% endblock %}

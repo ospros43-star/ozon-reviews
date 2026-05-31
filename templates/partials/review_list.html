@@ -1,0 +1,104 @@
+{% if reviews %}
+<table class="rv-table">
+  <thead>
+    <tr>
+      <th style="width:44px"></th>
+      <th style="min-width:200px">Товар</th>
+      <th style="min-width:280px">Отзыв</th>
+      <th style="width:100px">Статус</th>
+      <th style="width:60px">Оценка</th>
+      <th style="width:60px;text-align:center" title="Ответов на Ozon">Ответы</th>
+      <th style="width:100px">Опубликован</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for rv in reviews %}
+  <tr data-id="{{ rv.id }}" onclick="openReview({{ rv.id }})">
+    <td>
+      <div class="rv-thumb">
+        {% if rv.image_url %}
+        <img src="{{ rv.image_url }}" alt="" loading="lazy" onerror="this.parentElement.textContent='📦'">
+        {% else %}📦{% endif %}
+      </div>
+    </td>
+    <td>
+      <div class="rv-product">{{ (rv.product_name or 'Без названия')|truncate(50, True, '…') }}</div>
+      {% if rv.ozon_sku %}<div class="rv-sku">{{ rv.ozon_sku }}</div>{% endif %}
+    </td>
+    <td>
+      <div class="rv-text">
+        {% if rv.review_text %}"{{ rv.review_text[:80] }}{% if rv.review_text|length > 80 %}…{% endif %}"
+        {% else %}<span style="font-style:italic;color:var(--text-light)">Только оценка без текста</span>{% endif %}
+      </div>
+    </td>
+    <td>
+      {% if rv.status == 'posted' %}<span class="st-done">Отвечено</span>
+      {% elif rv.status == 'error' %}<span class="st-error">Ошибка</span>
+      {% elif rv.status == 'rejected' %}<span class="st-reject">Отклонён</span>
+      {% elif rv.status == 'pending_approval' %}<span class="st-pending">На проверке</span>
+      {% elif rv.status == 'auto_posting' %}<span class="st-new">Публикуется</span>
+      {% else %}<span class="st-new">Новый</span>{% endif %}
+    </td>
+    <td>
+      <span class="rv-stars">
+        {% for i in range(1, 6) %}
+          <span class="rs {% if i <= rv.rating %}{% if rv.rating <= 3 %}rs-red{% else %}rs-fill{% endif %}{% else %}rs-empty{% endif %}">★</span>
+        {% endfor %}
+      </span>
+    </td>
+    <td style="text-align:center">
+      <span class="rv-ans {% if rv.status == 'posted' %}has{% else %}no{% endif %}">
+        {{ 1 if rv.status == 'posted' else 0 }}
+      </span>
+    </td>
+    <td>
+      {% if rv.review_created_at %}
+      <div class="rv-date">
+        {{ rv.review_created_at.strftime('%d.%m.%Y') }}<br>
+        <span class="rv-time">{{ rv.review_created_at.strftime('%H:%M') }}</span>
+      </div>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% else %}
+<div style="padding:80px 24px;text-align:center;color:var(--text-muted);">
+  <div style="font-size:48px;margin-bottom:12px;opacity:.3">{% if tab == 'pending' %}✓{% else %}📋{% endif %}</div>
+  <div style="font-size:15px;font-weight:600">{% if tab == 'pending' %}Нет отзывов без ответа{% else %}Отзывов пока нет{% endif %}</div>
+</div>
+{% endif %}
+
+{% if has_more %}
+<div style="padding:14px;text-align:center;border-top:1px solid var(--border);background:var(--surface2)">
+  <button class="btn btn-ghost btn-sm"
+    onclick="loadMore({{ next_skip }}, '{{ tab }}', '{{ q }}', '{{ filter }}')"
+    id="load-more-btn">
+    Загрузить ещё
+  </button>
+</div>
+{% endif %}
+
+<script>
+async function loadMore(skip, tab, q, filter) {
+  const btn = document.getElementById('load-more-btn');
+  btn.disabled = true; btn.textContent = 'Загрузка…';
+  const p = new URLSearchParams({tab, skip, q});
+  if (filter) p.set('filter', filter);
+  const html = await fetch(`/partials/reviews?${p}`).then(r => r.text());
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  btn.closest('div').remove();
+  const tbody = document.querySelector('.rv-table tbody');
+  const newTbody = tmp.querySelector('tbody');
+  if (tbody && newTbody) tbody.insertAdjacentHTML('beforeend', newTbody.innerHTML);
+  const moreDiv = tmp.querySelector('#load-more-btn')?.closest('div');
+  if (moreDiv) document.getElementById('review-list-inner').insertAdjacentHTML('beforeend', moreDiv.outerHTML);
+  tmp.querySelectorAll('script').forEach(s => {
+    const ns = document.createElement('script'); ns.textContent = s.textContent;
+    document.head.appendChild(ns); document.head.removeChild(ns);
+  });
+}
+</script>

@@ -1,0 +1,873 @@
+{% extends "base.html" %}
+{% block title %}Аналитика — Ozon Reviews{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+{% block extra_styles %}
+.an-wrap { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px; background: var(--bg); }
+.an-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.an-title { font-size: 18px; font-weight: 700; color: var(--text); }
+.period-btns { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.period-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; background: var(--surface); color: var(--text-muted); cursor: pointer; transition: all .15s; }
+.period-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+.period-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.date-range-wrap { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; cursor: pointer; transition: border-color .15s; user-select: none; }
+.date-range-wrap:hover { border-color: var(--primary); }
+.date-range-label { font-size: 11px; font-weight: 600; color: var(--text-muted); line-height: 1; margin-bottom: 2px; }
+.date-range-val { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.date-range-icon { color: var(--text-muted); flex-shrink: 0; }
+/* flatpickr — используем .fp-custom для перебивания глобального CSS */
+.flatpickr-input { display: none !important; }
+.flatpickr-calendar:not(.open):not(.inline) { display: none !important; }
+.fp-custom.flatpickr-calendar { font-family: inherit !important; box-shadow: 0 12px 40px rgba(0,0,0,.18) !important; border: 1px solid var(--border) !important; border-radius: 16px !important; background: var(--surface) !important; padding: 12px 12px 0 !important; width: auto !important; }
+/* Заголовок: два месяца рядом */
+.fp-custom .flatpickr-months { display: flex !important; flex-direction: row !important; align-items: center !important; padding-bottom: 8px !important; }
+.fp-custom .flatpickr-month { flex: 1 !important; height: 32px !important; display: flex !important; align-items: center !important; justify-content: center !important; }
+.fp-custom .flatpickr-current-month { font-size: 14px !important; font-weight: 700 !important; color: var(--text) !important; padding: 0 !important; display: flex !important; align-items: center !important; gap: 4px !important; }
+.fp-custom .flatpickr-current-month .numInputWrapper { display: none !important; }
+.fp-custom .flatpickr-current-month .cur-month { font-weight: 700 !important; font-size: 14px !important; margin: 0 !important; }
+.fp-custom .flatpickr-prev-month, .fp-custom .flatpickr-next-month { display: flex !important; align-items: center !important; height: 32px !important; padding: 6px 10px !important; flex-shrink: 0 !important; }
+.fp-custom .flatpickr-prev-month svg, .fp-custom .flatpickr-next-month svg { width: 14px !important; height: 14px !important; fill: currentColor !important; }
+/* Два месяца рядом */
+.fp-custom .flatpickr-innerContainer { display: flex !important; flex-direction: row !important; gap: 16px !important; align-items: flex-start !important; }
+.fp-custom .flatpickr-rContainer { display: block !important; flex-shrink: 0 !important; }
+/* Дни недели */
+.fp-custom .flatpickr-weekdays { display: flex !important; flex-direction: row !important; width: 280px !important; }
+.fp-custom .flatpickr-weekdaycontainer { display: flex !important; flex-direction: row !important; flex: 1 !important; }
+.fp-custom .flatpickr-weekday { flex: 0 0 40px !important; width: 40px !important; text-align: center !important; font-size: 11px !important; font-weight: 600 !important; color: var(--text-muted) !important; line-height: 32px !important; }
+/* Сетка дней */
+.fp-custom .flatpickr-days { display: block !important; width: 280px !important; }
+.fp-custom .dayContainer { display: flex !important; flex-wrap: wrap !important; width: 280px !important; min-width: 280px !important; max-width: 280px !important; padding: 0 !important; }
+.fp-custom .flatpickr-day { display: flex !important; align-items: center !important; justify-content: center !important; flex: 0 0 40px !important; width: 40px !important; max-width: 40px !important; height: 40px !important; font-size: 13px !important; border-radius: 50% !important; border: none !important; color: var(--text) !important; margin: 0 !important; }
+/* Все дни — без обводки, форму задаём отдельно */
+.fp-custom .flatpickr-day { border-radius: 50% !important; border: none !important; }
+/* Диапазон: полоса без скруглений */
+.fp-custom .flatpickr-day.inRange { background: rgba(0,79,238,.12) !important; border-radius: 0 !important; box-shadow: none !important; border-color: transparent !important; color: var(--primary) !important; }
+/* Начало и конец — круглые */
+.fp-custom .flatpickr-day.startRange, .fp-custom .flatpickr-day.endRange, .fp-custom .flatpickr-day.selected { background: var(--primary) !important; border-color: var(--primary) !important; color: #fff !important; border-radius: 50% !important; }
+/* Если начало/конец одновременно в диапазоне — оставляем круглыми */
+.fp-custom .flatpickr-day.startRange.inRange, .fp-custom .flatpickr-day.endRange.inRange { border-radius: 50% !important; }
+.fp-custom .flatpickr-day:hover:not(.selected):not(.startRange):not(.endRange):not(.inRange) { background: var(--surface2) !important; border-radius: 50% !important; }
+.fp-custom .flatpickr-day.today:not(.selected):not(.inRange) { border: 2px solid var(--primary) !important; }
+.fp-custom .flatpickr-day.prevMonthDay, .fp-custom .flatpickr-day.nextMonthDay { opacity: .35 !important; }
+/* Быстрые кнопки */
+.fp-quick-btns { display: flex !important; flex-direction: row !important; gap: 8px; padding: 12px 0 14px; border-top: 1px solid var(--border); margin-top: 6px; }
+.fp-quick { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; background: transparent; color: var(--text); cursor: pointer; transition: all .15s; white-space: nowrap; font-family: inherit; }
+.fp-quick:hover { border-color: var(--primary); color: var(--primary); background: rgba(0,79,238,.05); }
+
+.summary-row { display: flex; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; flex: 1; min-width: 180px; }
+.sum-card-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
+.sum-card-icon { font-size: 16px; }
+.sum-card-val { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; margin-bottom: 6px; }
+.sum-card-delta { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; margin-bottom: 12px; }
+.sum-card-delta.pos { color: var(--green); }
+.sum-card-delta.neg { color: var(--red); }
+.sum-card-delta.neu { color: var(--text-muted); }
+.sum-card-sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; }
+.sum-card-sub-delta { font-weight: 600; }
+.sum-card-sub-delta.pos { color: var(--green); }
+.sum-card-sub-delta.neg { color: var(--red); }
+
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; overflow: hidden; }
+.chart-card .cc-title { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+.chart-card .cc-sub { font-size: 11px; color: var(--text-light); margin-bottom: 14px; }
+.chart-wrap { position: relative; height: 240px; }
+
+.section-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+.prod-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+.prod-table thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; background: var(--surface2); border-bottom: 2px solid var(--border); line-height: 1.3; }
+.prod-table thead th.right { text-align: right; }
+.prod-table tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+.prod-table tbody tr:last-child { border-bottom: none; }
+.prod-table tbody tr:hover { background: var(--surface2); }
+.prod-table tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+.prod-table tbody td.right { text-align: right; font-variant-numeric: tabular-nums; }
+.prod-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; background: var(--bg); flex-shrink: 0; }
+.prod-name { font-weight: 600; color: var(--text); font-size: 12px; line-height: 1.4; max-width: 220px; }
+.prod-sku { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.rev-val { font-weight: 700; color: var(--green); }
+.units-val { color: var(--primary); font-weight: 600; }
+.stock-val { color: var(--text); font-weight: 600; }
+.stock-low { color: var(--red); font-weight: 700; }
+.inway-val { color: var(--orange); font-weight: 600; }
+.spark { display: block; }
+.skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--surface2) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 4px; height: 14px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
+
+  <div class="an-wrap">
+    <div class="an-header">
+      <div class="an-title">Аналитика</div>
+      <div class="period-btns">
+        <div style="position:relative">
+          <div class="date-range-wrap" id="date-range-trigger">
+            <svg class="date-range-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <div>
+              <div class="date-range-label">Период</div>
+              <div class="date-range-val" id="date-range-display">—</div>
+            </div>
+          </div>
+          <input id="date-range-input" type="text" readonly
+            style="position:absolute;bottom:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;border:none;padding:0;">
+        </div>
+        <div class="period-sep"></div>
+        <button class="period-btn" onclick="setPeriod(7, this)">7 дней</button>
+        <button class="period-btn active" onclick="setPeriod(28, this)">28 дней</button>
+        <button class="period-btn" onclick="setPeriod(56, this)">56 дней</button>
+      </div>
+    </div>
+
+    <!-- Сводка продаж -->
+    <div class="summary-row" id="summary-row">
+      <div class="sum-card"><div class="skeleton" style="height:90px"></div></div>
+      <div class="sum-card"><div class="skeleton" style="height:90px"></div></div>
+      <div class="sum-card"><div class="skeleton" style="height:90px"></div></div>
+      <div class="sum-card"><div class="skeleton" style="height:90px"></div></div>
+    </div>
+
+    <!-- Графики -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+      <div class="chart-card">
+        <div class="cc-title">Продажи по дням</div>
+        <div class="cc-sub">Выручка · Заказы</div>
+        <div class="chart-wrap"><canvas id="chart-sales"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="cc-title">Отмены и возвраты</div>
+        <div class="cc-sub" id="cancel-sub">по дням</div>
+        <div class="chart-wrap"><canvas id="chart-cancel"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Поиск + заголовок таблицы -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px">
+      <div class="section-title" style="margin-bottom:0;white-space:nowrap">Товарная аналитика</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1;max-width:440px">
+        <div style="position:relative;flex:1">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="prod-search" type="text" placeholder="Поиск по товару, артикулу…"
+            oninput="filterProducts(this.value)"
+            style="width:100%;padding:7px 32px 7px 32px;border:1px solid var(--border);border-radius:20px;font-size:13px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;box-sizing:border-box;transition:border-color .15s"
+            onfocus="this.style.borderColor='var(--primary)'"
+            onblur="this.style.borderColor='var(--border)'">
+          <button id="prod-search-clear" onclick="clearProdSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:16px;line-height:1;padding:0">×</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <span id="stocks-updated" style="font-size:11px;color:var(--text-muted)"></span>
+        <button class="btn btn-ghost btn-sm" id="refresh-stocks-btn" onclick="refreshStocks(this)">⟳ Обновить остатки</button>
+      </div>
+    </div>
+    <div id="prod-table-wrap">
+      <div class="skeleton" style="height:200px;border-radius:10px"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="spark-tip" style="position:fixed;background:white;color:#1c1e26;padding:7px 12px;border-radius:8px;font-size:12px;pointer-events:none;display:none;z-index:9000;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.12);border:1px solid #e4e7ed;line-height:1.6"></div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+<script>
+let chartSales = null;
+let currentDays = 28;
+let currentDateFrom = '';
+let currentDateTo = '';
+
+const LS_VER = 'v5';
+function lsKey(type, key) { return `ozon_${type}_${key}_${LS_VER}`; }
+function lsGet(type, key) { try { const v = localStorage.getItem(lsKey(type, key)); return v ? JSON.parse(v) : null; } catch { return null; } }
+function lsSet(type, key, val) { try { localStorage.setItem(lsKey(type, key), JSON.stringify(val)); } catch {} }
+
+function fmt(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return Math.round(n).toLocaleString('ru');
+}
+function fmtFull(n) {
+  return Math.round(n).toLocaleString('ru');
+}
+
+function fillDays(data, days, dateFrom, dateTo) {
+  const byDay = {};
+  data.forEach(r => byDay[r.day] = r);
+  const result = [];
+  if (dateFrom && dateTo) {
+    // Кастомный диапазон: итерируем от dateFrom до dateTo
+    const d = new Date(dateFrom + 'T00:00:00');
+    const end = new Date(dateTo + 'T00:00:00');
+    while (d <= end) {
+      const k = dateToIso(d);
+      result.push(byDay[k] || {day: k, revenue: 0, units: 0});
+      d.setDate(d.getDate() + 1);
+    }
+  } else {
+    // Стандартный режим: последние N дней от вчера
+    for (let i = days; i >= 1; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const k = dateToIso(d);
+      result.push(byDay[k] || {day: k, revenue: 0, units: 0});
+    }
+  }
+  return result;
+}
+
+function dayLabel(iso) {
+  const [, m, d] = iso.split('-');
+  return `${d}.${m}`;
+}
+
+function deltaHtml(d, invertGood = false) {
+  if (!d || d.pct === null) return '';
+  const good = invertGood ? d.diff < 0 : d.diff > 0;
+  const cls = d.diff === 0 ? 'neu' : (good ? 'pos' : 'neg');
+  const arrow = d.diff > 0 ? '↑' : '↓';
+  const sign = d.diff > 0 ? '+' : '';
+  const pct = d.pct !== null ? ` (${d.pct > 0 ? '+' : ''}${d.pct}%)` : '';
+  return `<div class="sum-card-delta ${cls}">${arrow} ${sign}${fmtFull(Math.abs(d.diff))}${pct}</div>`;
+}
+
+function miniSparkSvg(daily, color = '#004fee') {
+  if (!daily || !daily.length) return '';
+  const vals = daily.map(r => r.units || 0);
+  const max = Math.max(...vals, 1);
+  const W = 120, H = 32, gap = 1, n = vals.length;
+  const barW = Math.max(2, Math.floor((W - (n - 1) * gap) / n));
+  const bars = vals.map((v, i) => {
+    const x = i * (barW + gap);
+    const h = Math.max(2, Math.round((v / max) * (H - 2)));
+    return `<rect x="${x}" y="${H - h}" width="${barW}" height="${h}" rx="1" fill="${color}" opacity=".7"/>`;
+  }).join('');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">${bars}</svg>`;
+}
+
+function transitCell(v) {
+  if (v === null || v === undefined || v === 0) return '—';
+  return `<span style="color:var(--orange);font-weight:600">${v.toLocaleString('ru')}</span>`;
+}
+
+const columnHighlightPlugin = {
+  id: 'columnHighlight',
+  afterDatasetsDraw(chart) {
+    if (!chart.tooltip._active?.length) return;
+    const { ctx, chartArea: { top, bottom } } = chart;
+    const idx = chart.tooltip._active[0].index;
+    const bar = chart.getDatasetMeta(0).data[idx];
+    if (!bar) return;
+    const w = bar.width ?? 20;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,79,238,.07)';
+    ctx.fillRect(bar.x - w / 2 - 1, top, w + 2, bottom - top);
+    ctx.restore();
+  }
+};
+
+function renderSummary(s, days, dateFrom, dateTo) {
+  const avgUnitsDay = s.avg_units_day;
+  const dAvg = s.delta_avg_units_day;
+  document.getElementById('summary-row').innerHTML = `
+    <div class="sum-card">
+      <div class="sum-card-head"><span class="sum-card-icon">📦</span> Заказы</div>
+      <div class="sum-card-val">${fmtFull(s.revenue)} ₽</div>
+      ${deltaHtml(s.delta_revenue)}
+      <div class="sum-card-sub">
+        <span>${fmtFull(s.ordered_units)} шт.</span>
+        <span class="sum-card-sub-delta ${s.delta_units.diff >= 0 ? 'pos' : 'neg'}">
+          ${s.delta_units.diff > 0 ? '+' : ''}${fmtFull(s.delta_units.diff)} шт.
+        </span>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-head"><span class="sum-card-icon">🚫</span> Отмены</div>
+      <div class="sum-card-val" style="color:var(--red)">${fmtFull(s.cancellations)} шт.</div>
+      ${deltaHtml(s.delta_cancellations, true)}
+      <div class="sum-card-sub">
+        <span>Возвраты</span>
+        <span class="sum-card-sub-delta ${s.returns === 0 ? '' : 'neg'}">${fmtFull(s.returns)} шт.</span>
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-head"><span class="sum-card-icon">📈</span> Заказов в день (средн.)</div>
+      <div class="sum-card-val">${Math.round(avgUnitsDay)}</div>
+      <div class="sum-card-delta ${dAvg.diff >= 0 ? 'pos' : 'neg'}">
+        ${dAvg.diff >= 0 ? '↑' : '↓'} ${Math.abs(Math.round(dAvg.diff))} шт./день
+      </div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-card-head"><span class="sum-card-icon">💰</span> Средний чек</div>
+      <div class="sum-card-val">${s.ordered_units > 0 ? fmtFull(s.revenue / s.ordered_units) + ' ₽' : '—'}</div>
+      <div class="sum-card-sub" style="margin-top:auto">
+        <span>Доставлено</span>
+        <span style="font-weight:600;color:var(--green)">${fmtFull(s.delivered_units)} шт.</span>
+      </div>
+    </div>`;
+
+  if (s.daily && s.daily.length) {
+    const filled = fillDays(s.daily, days, dateFrom, dateTo);
+    const labels = filled.map(r => dayLabel(r.day));
+    const revenue = filled.map(r => r.revenue);
+    const units = filled.map(r => r.units);
+    if (chartSales) chartSales.destroy();
+    chartSales = new Chart(document.getElementById('chart-sales'), {
+      type: 'bar',
+      plugins: [columnHighlightPlugin],
+      data: {
+        labels,
+        datasets: [
+          { label: 'Выручка ₽', data: revenue, backgroundColor: 'rgba(0,79,238,.7)', borderRadius: 3, yAxisID: 'y', order: 2 },
+          { label: 'Заказы', data: units, type: 'line', borderColor: '#1aad76', backgroundColor: 'rgba(26,173,118,.1)', tension: .4, pointRadius: 2, pointBackgroundColor: '#1aad76', yAxisID: 'y2', order: 1, fill: true },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: {size:11}, boxWidth:10, padding:12 } },
+          tooltip: {
+            backgroundColor: '#1c1e26',
+            titleColor: '#fff',
+            bodyColor: 'rgba(255,255,255,.85)',
+            titleFont: { size: 13, weight: '700' },
+            bodyFont: { size: 12 },
+            padding: 10,
+            cornerRadius: 8,
+            boxPadding: 4,
+            callbacks: {
+              title: items => items[0]?.label || '',
+              label: item => {
+                if (item.datasetIndex === 1)
+                  return `  Заказы: ${Math.round(item.raw).toLocaleString('ru')}`;
+                return `  Выручка: ${Math.round(item.raw).toLocaleString('ru')} ₽`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font:{size:10}, color:'#8a92a6', maxRotation: 45 } },
+          y: { beginAtZero: true, position: 'left', ticks: { font:{size:10}, color:'#8a92a6', callback: v => fmt(v) }, grid: { color:'#e4e7ed' } },
+          y2: { beginAtZero: true, position: 'right', ticks: { font:{size:10}, color:'#1aad76' }, grid: { display: false } },
+        },
+      },
+    });
+  }
+}
+
+function buildApiParams(days, dateFrom, dateTo) {
+  if (dateFrom && dateTo) return `date_from=${dateFrom}&date_to=${dateTo}`;
+  return `days=${days}`;
+}
+
+function buildLsKey(days, dateFrom, dateTo) {
+  return dateFrom && dateTo ? `${dateFrom}_${dateTo}` : days;
+}
+
+async function loadSummary(days, dateFrom, dateTo) {
+  const key = buildLsKey(days, dateFrom, dateTo);
+  const stale = lsGet('summary', key);
+  if (stale) renderSummary(stale, stale.period_days ?? days, dateFrom, dateTo);
+
+  const s = await fetch(`/api/analytics/summary?${buildApiParams(days, dateFrom, dateTo)}`).then(r => r.json());
+  if (s.error) return;
+  renderSummary(s, s.period_days ?? days, dateFrom, dateTo);
+  lsSet('summary', key, s);
+}
+
+
+function sparkTip(e, date, units, revenue) {
+  const tip = document.getElementById('spark-tip');
+  tip.innerHTML = `<b style="font-size:13px">${date}</b><br><span style="color:var(--text-muted)">Заказы:&nbsp;&nbsp;</span><b>${units} шт.</b>`;
+  tip.style.display = 'block';
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 38) + 'px';
+}
+function sparkTipHide() {
+  document.getElementById('spark-tip').style.display = 'none';
+}
+
+function sparkline(daily) {
+  if (!daily || !daily.length) return '<span style="color:var(--text-light);font-size:11px">—</span>';
+  const vals = daily.map(d => (typeof d === 'object' ? d.u : d));
+  const max = Math.max(...vals, 1);
+  const n = vals.length;
+  const W = 180, H = 36, gap = 1;
+  const barW = Math.max(2, Math.floor((W - (n - 1) * gap) / n));
+  const totalW = n * barW + (n - 1) * gap;
+  const today = new Date();
+  const bars = vals.map((v, i) => {
+    const x = i * (barW + gap);
+    const h = Math.max(2, Math.round((v / max) * (H - 2)));
+    const dObj = new Date(today);
+    dObj.setDate(today.getDate() - n + i);
+    const dateStr = `${dObj.getDate()}.${String(dObj.getMonth()+1).padStart(2,'0')}`;
+    const rev = (typeof daily[i] === 'object') ? daily[i].r : null;
+    const tipData = rev !== null
+      ? `'${dateStr}',${v},${rev}`
+      : `'${dateStr}',${v},null`;
+    const op = v === 0 ? '.25' : '.75';
+    return `<rect x="${x}" y="0" width="${barW}" height="${H}" rx="1" fill="#004fee" opacity="0"/>` +
+           `<rect x="${x}" y="${H-h}" width="${barW}" height="${h}" rx="1" fill="#004fee" opacity="${op}"/>` +
+           `<rect x="${x}" y="0" width="${barW}" height="${H}" fill="transparent" style="cursor:default"` +
+           ` onmouseenter="const s=this.previousElementSibling;const bg=s.previousElementSibling;s.setAttribute('opacity','1');bg.setAttribute('opacity','.13')"` +
+           ` onmouseleave="const s=this.previousElementSibling;const bg=s.previousElementSibling;s.setAttribute('opacity','${op}');bg.setAttribute('opacity','0');sparkTipHide()"` +
+           ` onmousemove="sparkTip(event,${tipData})"/>`;
+  }).join('');
+  return `<svg class="spark" width="${totalW}" height="${H}" viewBox="0 0 ${totalW} ${H}" style="overflow:visible">${bars}</svg>`;
+}
+
+let prodData = [];
+let sortCol = null;
+let sortDir = 1;
+
+
+function renderProdTable(data, days) {
+  const rows = data.map((p) => {
+    const stockCls = p.stock !== null && p.stock <= 5 ? 'stock-low' : 'stock-val';
+    const stockVal = p.stock !== null ? p.stock.toLocaleString('ru') : '—';
+    const reservedVal = p.reserved !== null && p.reserved > 0
+      ? `<span style="color:var(--orange);font-weight:600">${p.reserved.toLocaleString('ru')}</span>` : '—';
+    const avgVal = p.avg_day ? Math.round(p.avg_day).toLocaleString('ru') + ' ₽' : '—';
+    const turnover = p.stock !== null && p.stock >= 0 && p.units > 0
+      ? Math.round(p.stock * days / p.units) : null;
+    const turnoverVal = turnover !== null ? `${turnover} дн.` : '—';
+    return `
+    <tr>
+      <td style="width:36px;padding:8px 8px;text-align:center;color:var(--text-light);font-size:16px;cursor:default">+</td>
+      <td style="width:44px;padding:8px 6px">
+        ${p.image ? `<img src="${p.image}" class="prod-thumb" onerror="this.style.display='none'">` : '<div class="prod-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px">📦</div>'}
+      </td>
+      <td>
+        <div class="prod-name">${p.name || '—'}</div>
+        <div class="prod-sku">Артикул: <span style="color:var(--primary)">${p.sku}</span></div>
+      </td>
+      <td class="right" data-val="${p.stock ?? -1}"><span class="${stockCls}">${stockVal}</span></td>
+      <td style="padding:6px 10px">${sparkline(p.daily)}</td>
+      <td class="right" data-val="${p.transit ?? 0}">${transitCell(p.transit)}</td>
+      <td class="right" data-val="${p.revenue}"><span class="rev-val">${Math.round(p.revenue).toLocaleString('ru')} ₽</span></td>
+      <td class="right" data-val="${p.units}"><span class="units-val">${p.units.toLocaleString('ru')}</span></td>
+      <td class="right" data-val="${turnover ?? 9999}">${turnoverVal}</td>
+    </tr>`;
+  }).join('');
+
+  const arrow = dir => dir === 1 ? ' ↑' : ' ↓';
+  const th = (label, col, cls = '') => {
+    const active = sortCol === col;
+    return `<th class="right sortable-th ${cls}" onclick="sortTable('${col}')" style="cursor:pointer;user-select:none;white-space:nowrap">
+      ${label}${active ? `<span style="color:var(--primary)">${arrow(sortDir)}</span>` : ' <span style="opacity:.3">⇅</span>'}
+    </th>`;
+  };
+
+  document.getElementById('prod-table-wrap').innerHTML = `
+    <table class="prod-table">
+      <thead>
+        <tr>
+          <th style="width:36px"></th>
+          <th style="width:44px"></th>
+          <th>Товар</th>
+          ${th('Остаток', 'stock')}
+          <th>График продаж</th>
+          ${th('Товары<br>в пути', 'transit')}
+          ${th(`Сумма продаж<br><span style="font-weight:400;opacity:.7">(${days} дн.)</span>`, 'revenue')}
+          ${th(`Заказы<br><span style="font-weight:400;opacity:.7">(${days} дн.)</span>`, 'units')}
+
+          ${th('Оборачи-<br>ваемость', 'turnover')}
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function sortTable(col) {
+  if (sortCol === col) { sortDir = -sortDir; }
+  else { sortCol = col; sortDir = -1; }
+  _applySearchAndRender();
+}
+
+async function loadProducts(days, dateFrom, dateTo) {
+  const wrap = document.getElementById('prod-table-wrap');
+  const key = buildLsKey(days, dateFrom, dateTo);
+  const stale = lsGet('prod', key);
+  function _applyDefaultSort(rows) {
+    sortCol = 'stock'; sortDir = -1;
+    return [...rows].sort((a, b) => ((a.stock ?? -1) - (b.stock ?? -1)) * sortDir);
+  }
+
+  if (stale) {
+    prodData = stale;
+    if (!_prodSearchQuery) renderProdTable(_applyDefaultSort(prodData), days);
+    else _applySearchAndRender();
+  } else {
+    wrap.innerHTML = '<div class="skeleton" style="height:200px;border-radius:10px"></div>';
+  }
+
+  const data = await fetch(`/api/analytics/product-sales?${buildApiParams(days, dateFrom, dateTo)}&limit=50`).then(r => r.json());
+  if (data.error || !data.length) {
+    if (!stale) wrap.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">${data.error || 'Нет данных'}</div>`;
+    return;
+  }
+  prodData = data;
+  if (!_prodSearchQuery) renderProdTable(_applyDefaultSort(prodData), days);
+  else _applySearchAndRender();
+  lsSet('prod', key, data);
+}
+
+async function refreshStocks(btn) {
+  btn.disabled = true;
+  btn.textContent = '⟳ Обновляем…';
+  try {
+    const d = await fetch('/api/analytics/refresh-stocks', {method:'POST'}).then(r => r.json());
+    if (d.ok) {
+      showStocksUpdated(d.updated_at);
+      await loadProducts(currentDays, currentDateFrom, currentDateTo);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⟳ Обновить остатки';
+  }
+}
+
+function showStocksUpdated(iso) {
+  if (!iso) return;
+  const d = new Date(iso);
+  const label = `Остатки обновлены: ${d.toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'})}`;
+  document.getElementById('stocks-updated').textContent = label;
+}
+
+async function loadStocksInfo() {
+  try {
+    const d = await fetch('/api/analytics/stocks-info').then(r => r.json());
+    showStocksUpdated(d.updated_at);
+  } catch {}
+}
+
+// Форматирует Date в YYYY-MM-DD без сдвига по таймзоне
+function dateToIso(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtDate(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function updateDateDisplay(from, to) {
+  document.getElementById('date-range-display').textContent = `${fmtDate(from)} — ${fmtDate(to)}`;
+}
+
+function setPeriod(days, btn) {
+  currentDays = days;
+  currentDateFrom = '';
+  currentDateTo = '';
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const to = new Date(); to.setDate(to.getDate() - 1);
+  const from = new Date(to); from.setDate(from.getDate() - days + 1);
+  fp.setDate([from, to], false);
+  updateDateDisplay(dateToIso(from), dateToIso(to));
+  loadAll(days, '', '');
+}
+
+let chartCancel = null;
+
+function renderCancelChart(data) {
+  const labels = data.map(d => {
+    const [, m, day] = d.day.split('-');
+    return `${day}.${m}`;
+  });
+  const cancels = data.map(d => d.cancelled);
+  const returns = data.map(d => d.returned);
+  const totalC = cancels.reduce((a, b) => a + b, 0);
+  const totalR = returns.reduce((a, b) => a + b, 0);
+  document.getElementById('cancel-sub').textContent =
+    `отмены ${totalC} · возвраты ${totalR} за период`;
+  const ctx = document.getElementById('chart-cancel').getContext('2d');
+  if (chartCancel) chartCancel.destroy();
+  chartCancel = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Отмены',
+          data: cancels,
+          backgroundColor: 'rgba(245,166,35,0.75)',
+          borderRadius: 3,
+          order: 2,
+        },
+        {
+          label: 'Возвраты',
+          data: returns,
+          backgroundColor: 'rgba(229,62,62,0.75)',
+          borderRadius: 3,
+          order: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 8 } },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          align: 'end',
+          labels: { boxWidth: 10, boxHeight: 10, font: { size: 11 }, color: '#8a92a6', padding: 8 },
+        },
+        tooltip: {
+          backgroundColor: 'white',
+          titleColor: '#1c1e26',
+          bodyColor: '#1c1e26',
+          borderColor: '#e4e7ed',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            title: items => items[0].label,
+            label: item => `${item.dataset.label}: ${item.raw}`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#8a92a6', maxTicksLimit: 8 }, stacked: true },
+        y: { grid: { color: 'rgba(0,0,0,.04)' }, ticks: { font: { size: 11 }, color: '#8a92a6' }, stacked: true },
+      },
+    },
+  });
+}
+
+async function loadDeliveryRate(days, dateFrom, dateTo) {
+  const params = dateFrom && dateTo ? `date_from=${dateFrom}&date_to=${dateTo}` : `days=${days}`;
+  try {
+    const data = await fetch(`/api/analytics/delivery-rate-by-day?${params}`).then(r => r.json());
+    if (!Array.isArray(data) || !data.length) return;
+    renderCancelChart(data);
+  } catch {}
+}
+
+let _prodSearchQuery = '';
+
+function filterProducts(q) {
+  _prodSearchQuery = q.trim().toLowerCase();
+  const clearBtn = document.getElementById('prod-search-clear');
+  clearBtn.style.display = _prodSearchQuery ? 'block' : 'none';
+  _applySearchAndRender();
+}
+
+function clearProdSearch() {
+  _prodSearchQuery = '';
+  document.getElementById('prod-search').value = '';
+  document.getElementById('prod-search-clear').style.display = 'none';
+  _applySearchAndRender();
+}
+
+function _applySearchAndRender() {
+  let data = prodData;
+  if (_prodSearchQuery) {
+    data = prodData.filter(p =>
+      (p.name || '').toLowerCase().includes(_prodSearchQuery) ||
+      (p.sku || '').toLowerCase().includes(_prodSearchQuery)
+    );
+  }
+  if (sortCol) {
+    data = [...data].sort((a, b) => {
+      let av, bv;
+      if (sortCol === 'turnover') {
+        av = a.units > 0 && a.stock !== null ? a.stock * currentDays / a.units : 9999;
+        bv = b.units > 0 && b.stock !== null ? b.stock * currentDays / b.units : 9999;
+      } else {
+        av = a[sortCol] ?? -1;
+        bv = b[sortCol] ?? -1;
+      }
+      return (av - bv) * sortDir;
+    });
+  }
+  renderProdTable(data, currentDays);
+}
+
+function loadAll(days, dateFrom, dateTo) {
+  loadSummary(days, dateFrom, dateTo);
+  loadProducts(days, dateFrom, dateTo);
+  loadDeliveryRate(days, dateFrom, dateTo);
+}
+
+// ── flatpickr layout fix ──
+// С showMonths:2 оба месяца живут в ОДНОМ .flatpickr-days → делаем его flex-row.
+// setProperty(...,'important') перебивает любой глобальный CSS.
+function _fpFixLayout(cal) {
+  const s = (sel, props) => cal.querySelectorAll(sel).forEach(el =>
+    Object.entries(props).forEach(([p, v]) => el.style.setProperty(p, v, 'important'))
+  );
+
+  // Календарь должен быть достаточно широким
+  cal.style.setProperty('width', 'auto', 'important');
+
+  // Заголовок: два месяца в ряд
+  s('.flatpickr-months', {
+    display: 'flex', 'flex-direction': 'row', 'align-items': 'center',
+  });
+  s('.flatpickr-month', {
+    flex: '1', display: 'flex', 'align-items': 'center', 'justify-content': 'center',
+  });
+  s('.flatpickr-current-month', {
+    display: 'flex', 'align-items': 'center', 'justify-content': 'center',
+    padding: '0', 'font-size': '14px', 'font-weight': '700',
+  });
+  s('.numInputWrapper', { display: 'none' });
+  s('.flatpickr-prev-month, .flatpickr-next-month', { 'flex-shrink': '0' });
+
+  // Заголовки дней недели: два weekdaycontainer в ряд
+  s('.flatpickr-weekdays', {
+    display: 'flex', 'flex-direction': 'row', gap: '20px', width: 'auto',
+  });
+  s('.flatpickr-weekdaycontainer', {
+    display: 'flex', 'flex-direction': 'row',
+    width: '280px', 'flex-shrink': '0',
+  });
+  s('.flatpickr-weekday', {
+    flex: '0 0 40px', width: '40px', 'text-align': 'center',
+    'font-size': '11px', 'font-weight': '600',
+  });
+
+  // Ключевой фикс: два dayContainer в ряд внутри одного flatpickr-days
+  s('.flatpickr-days', {
+    display: 'flex', 'flex-direction': 'row', gap: '20px',
+    width: 'auto', overflow: 'visible',
+  });
+  s('.dayContainer', {
+    display: 'flex', 'flex-wrap': 'wrap',
+    width: '280px', 'min-width': '280px', 'max-width': '280px',
+    'flex-shrink': '0', padding: '0',
+  });
+  s('.flatpickr-day', {
+    display: 'flex', 'align-items': 'center', 'justify-content': 'center',
+    flex: '0 0 40px', width: '40px', 'max-width': '40px',
+    height: '40px', margin: '0', 'font-size': '13px',
+  });
+}
+
+// ── flatpickr init ──────────────────────────────────────────
+const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+const defFrom = new Date(yesterday); defFrom.setDate(defFrom.getDate() - currentDays + 1);
+
+const fp = flatpickr('#date-range-input', {
+  mode: 'range',
+  locale: 'ru',
+  dateFormat: 'Y-m-d',
+  maxDate: yesterday,
+  showMonths: 2,
+  disableMobile: true,
+  clickOpens: false,
+  appendTo: document.body,
+  onOpen(selectedDates, dateStr, instance) {
+    // Открываем на месяце начала текущего диапазона
+    if (selectedDates.length >= 1) {
+      instance.jumpToDate(selectedDates[0], false);
+    }
+    _fpFixLayout(instance.calendarContainer);
+    setTimeout(() => {
+      _fpFixLayout(instance.calendarContainer);
+      const trigger = document.getElementById('date-range-trigger');
+      const rect = trigger.getBoundingClientRect();
+      const cal = instance.calendarContainer;
+      cal.style.position = 'fixed';
+      cal.style.zIndex = '9999';
+      cal.style.top = (rect.bottom + 6) + 'px';
+      cal.style.left = rect.left + 'px';
+      cal.style.right = 'auto';
+      const w = cal.offsetWidth;
+      if (rect.left + w > window.innerWidth - 12) {
+        cal.style.left = Math.max(8, window.innerWidth - w - 12) + 'px';
+      }
+    }, 0);
+  },
+  onMonthChange(selectedDates, dateStr, instance) {
+    _fpFixLayout(instance.calendarContainer);
+  },
+  onReady(selectedDates, dateStr, instance) {
+    instance.calendarContainer.classList.add('fp-custom');
+    _fpFixLayout(instance.calendarContainer);
+    const footer = document.createElement('div');
+    footer.className = 'fp-quick-btns';
+    footer.innerHTML = `
+      <button type="button" class="fp-quick" data-days="14">за 14 дней</button>
+      <button type="button" class="fp-quick" data-days="28">за 28 дней</button>
+      <button type="button" class="fp-quick" data-days="56">за 56 дней</button>
+      <button type="button" class="fp-quick fp-quick-month">Текущий месяц</button>
+    `;
+    instance.calendarContainer.appendChild(footer);
+    footer.addEventListener('click', e => {
+      const btn = e.target.closest('[data-days]');
+      const monthBtn = e.target.closest('.fp-quick-month');
+      const yest = new Date(); yest.setDate(yest.getDate() - 1);
+      if (btn) {
+        const d = parseInt(btn.dataset.days);
+        const from = new Date(yest); from.setDate(from.getDate() - d + 1);
+        // setDate с true вызовет onChange → загрузит данные и закроет календарь
+        instance.setDate([from, yest], true);
+      } else if (monthBtn) {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), 1);
+        const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        instance.setDate([from, to > yest ? yest : to], true);
+      }
+    });
+  },
+  onChange(selectedDates) {
+    if (selectedDates.length !== 2) return;
+    const from = dateToIso(selectedDates[0]);
+    const to   = dateToIso(selectedDates[1]);
+    updateDateDisplay(from, to);
+    currentDateFrom = from;
+    currentDateTo   = to;
+    const d = Math.round((selectedDates[1] - selectedDates[0]) / 86400000) + 1;
+    currentDays = d;
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    loadAll(d, from, to);
+    fp.close();
+  },
+});
+fp.setDate([defFrom, yesterday], false);
+fp.close();
+
+document.getElementById('date-range-trigger').addEventListener('click', () => fp.toggle());
+updateDateDisplay(dateToIso(defFrom), dateToIso(yesterday));
+
+loadAll(currentDays, '', '');
+loadStocksInfo();
+
+// ── Превью картинок товаров ──
+const _prodPreview = document.createElement('div');
+_prodPreview.style.cssText = 'position:fixed;display:none;z-index:9999;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25);pointer-events:none;width:220px;';
+_prodPreview.innerHTML = '<img style="width:100%;height:auto;display:block;">';
+document.body.appendChild(_prodPreview);
+
+document.addEventListener('mouseover', e => {
+  const img = e.target.closest('img.prod-thumb');
+  if (!img?.src) return;
+  _prodPreview.querySelector('img').src = img.src;
+  _prodPreview.style.display = 'block';
+});
+document.addEventListener('mousemove', e => {
+  if (_prodPreview.style.display === 'none') return;
+  const x = e.clientX + 16;
+  const y = e.clientY - 110;
+  _prodPreview.style.left = Math.min(x, window.innerWidth - 236) + 'px';
+  _prodPreview.style.top = Math.max(8, y) + 'px';
+});
+document.addEventListener('mouseout', e => {
+  const img = e.target.closest('img.prod-thumb');
+  if (img && !img.contains(e.relatedTarget)) _prodPreview.style.display = 'none';
+});
+</script>
+{% endblock %}

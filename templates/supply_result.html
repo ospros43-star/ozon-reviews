@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Расчёт поставки{% endblock %}
+
+{% block extra_styles %}
+.res-wrap { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+
+/* Шапка с параметрами */
+.res-params { display:flex; align-items:center; gap:20px; padding:14px 24px;
+  background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0;
+  flex-wrap:wrap; font-size:13px; }
+.res-param { display:flex; align-items:center; gap:6px; }
+.res-param-lbl { color:var(--text-muted); }
+.res-param-val { font-weight:600; color:var(--text); }
+.res-totals { margin-left:auto; display:flex; align-items:center; gap:16px; }
+.res-total { text-align:center; }
+.res-total-val { font-size:18px; font-weight:700; color:var(--primary); }
+.res-total-lbl { font-size:11px; color:var(--text-muted); }
+
+/* Таблица */
+.res-table-wrap { flex:1; min-height:0; overflow:auto; }
+.res-table { width:100%; border-collapse:collapse; }
+.res-table thead th {
+  padding:10px 12px; text-align:center; font-size:11px; font-weight:700;
+  color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px;
+  border-bottom:2px solid var(--border); background:var(--surface2);
+  position:sticky; top:0; z-index:1; white-space:nowrap;
+}
+.res-table thead th.left { text-align:left; }
+.res-table tbody tr { border-bottom:1px solid var(--border); }
+.res-table tbody tr:hover { background:var(--surface2); }
+.res-table td { padding:10px 12px; font-size:13px; vertical-align:middle; text-align:center; }
+.res-table td.left { text-align:left; }
+
+.prod-thumb { width:40px; height:40px; border-radius:6px; object-fit:cover; background:var(--surface2); }
+.prod-name { font-weight:600; color:var(--text); font-size:13px; line-height:1.3; }
+.prod-sku  { font-size:11px; color:var(--text-muted); margin-top:2px; }
+
+/* Ячейка количества (редактируемая) */
+.qty-input { width:70px; padding:5px 8px; border:1px solid var(--border); border-radius:6px;
+  text-align:center; font-size:13px; font-family:inherit; background:var(--surface);
+  color:var(--text); outline:none; }
+.qty-input:focus { border-color:var(--primary); background:var(--primary-light); }
+.qty-input.has-value { background:var(--green-light); border-color:var(--green); color:#0a6641; font-weight:600; }
+.qty-zero { color:var(--text-muted); font-size:13px; }
+
+/* Дни запаса */
+.days-ok  { color:var(--green); font-weight:600; }
+.days-low { color:var(--orange); font-weight:600; }
+.days-crit{ color:var(--red); font-weight:600; }
+
+/* Кнопки */
+.res-actions { padding:14px 24px; background:var(--surface); border-top:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+{% endblock %}
+
+{% block content %}
+<div class="res-wrap">
+
+  <!-- Параметры расчёта -->
+  <div class="res-params">
+    <a href="/supplies/new" style="color:var(--text-muted);text-decoration:none;font-size:13px">← Назад</a>
+    <div class="res-param">
+      <span class="res-param-lbl">Дата поставки:</span>
+      <span class="res-param-val">{{ delivery_date[8:10] }}.{{ delivery_date[5:7] }}.{{ delivery_date[:4] }}</span>
+    </div>
+    <div class="res-param">
+      <span class="res-param-lbl">Отгрузка из:</span>
+      <span class="res-param-val">{{ source_name }}</span>
+    </div>
+    <div class="res-param">
+      <span class="res-param-lbl">Анализ:</span>
+      <span class="res-param-val">{{ analysis_days }} дн.</span>
+    </div>
+    <div class="res-param">
+      <span class="res-param-lbl">Цель:</span>
+      <span class="res-param-val">{{ target_days }} дн.</span>
+    </div>
+    <div class="res-totals">
+      <div class="res-total">
+        <div class="res-total-val">{{ total_skus }}</div>
+        <div class="res-total-lbl">SKU</div>
+      </div>
+      <div class="res-total">
+        <div class="res-total-val" id="grand-total">{{ total_units }}</div>
+        <div class="res-total-lbl">Товаров</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Таблица -->
+  <div class="res-table-wrap">
+    {% if results %}
+    <table class="res-table" id="res-table">
+      <thead>
+        <tr>
+          <th class="left" style="width:48px"></th>
+          <th class="left" style="min-width:200px">Товар</th>
+          <th>Продаж/день</th>
+          {% for cid in target_clusters %}
+          <th>
+            {{ target_names[loop.index0] }}<br>
+            <span style="font-weight:400;opacity:.7">остаток / дней / отправить</span>
+          </th>
+          {% endfor %}
+          <th>Итого</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr data-sku="{{ r.sku }}" data-name="{{ r.name }}" data-offer="{{ r.offer_id }}" data-image="{{ r.image or '' }}">
+          <td>
+            {% if r.image %}
+            <img class="prod-thumb" src="{{ r.image }}" alt="" loading="lazy" onerror="this.src=''">
+            {% else %}
+            <div class="prod-thumb" style="display:flex;align-items:center;justify-content:center">📦</div>
+            {% endif %}
+          </td>
+          <td class="left">
+            <div class="prod-name">{{ r.name }}</div>
+            <div class="prod-sku">{{ r.offer_id }}</div>
+          </td>
+          <td>{{ "%.1f"|format(r.daily_sales) }}</td>
+          {% for cid in target_clusters %}
+          {% set cl = r.by_cluster.get(cid, {}) %}
+          <td>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <div style="font-size:11px;color:var(--text-muted)">
+                {{ cl.get('current_stock', 0) }} шт
+                {% if cl.get('days_left') is not none %}
+                / <span class="{% if cl.days_left <= 7 %}days-crit{% elif cl.days_left <= 14 %}days-low{% else %}days-ok{% endif %}">{{ cl.days_left }}д</span>
+                {% endif %}
+              </div>
+              <input class="qty-input {% if cl.get('needed', 0) > 0 %}has-value{% endif %}"
+                type="number" min="0" value="{{ cl.get('needed', 0) }}"
+                data-sku="{{ r.sku }}" data-cluster="{{ cid }}"
+                oninput="updateTotals(this)">
+            </div>
+          </td>
+          {% endfor %}
+          <td>
+            <span class="row-total" style="font-weight:700;color:var(--primary)">{{ r.total_needed }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px;color:var(--text-muted)">
+      <div style="font-size:48px;opacity:.2">✅</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text)">Поставка не нужна</div>
+      <div style="font-size:13px">По всем выбранным кластерам запас достаточный</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Кнопки -->
+  <div class="res-actions">
+    <div style="font-size:13px;color:var(--text-muted)">
+      Количество можно скорректировать вручную перед сохранением
+    </div>
+    {% if results %}
+    <div style="display:flex;gap:10px">
+      <a href="/supplies/new" class="btn btn-ghost">Пересчитать</a>
+      <button class="btn btn-primary" onclick="savePlan()">Сохранить план</button>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const deliveryDate = "{{ delivery_date }}";
+const sourceCluster = "{{ source_cluster }}";
+const targetClusters = {{ target_clusters | tojson }};
+
+function updateTotals(input) {
+  input.classList.toggle('has-value', parseInt(input.value) > 0);
+  const row = input.closest('tr');
+  const inputs = row.querySelectorAll('.qty-input');
+  let rowSum = 0;
+  inputs.forEach(i => rowSum += parseInt(i.value) || 0);
+  row.querySelector('.row-total').textContent = rowSum;
+
+  let grand = 0;
+  document.querySelectorAll('.row-total').forEach(el => grand += parseInt(el.textContent) || 0);
+  document.getElementById('grand-total').textContent = grand;
+}
+
+async function savePlan() {
+  const items = [];
+  document.querySelectorAll('#res-table tbody tr').forEach(row => {
+    const sku = row.dataset.sku;
+    const name = row.dataset.name;
+    const offer = row.dataset.offer;
+    const image = row.dataset.image;
+    const inputs = row.querySelectorAll('.qty-input');
+    let total = 0;
+    inputs.forEach(i => total += parseInt(i.value) || 0);
+    if (total > 0) {
+      items.push({sku, name, offer_id: offer, image, units: total});
+    }
+  });
+
+  if (!items.length) { alert('Нет товаров для сохранения'); return; }
+
+  const r = await fetch('/supplies/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      delivery_date: deliveryDate,
+      items,
+      tags: targetClusters,
+      user_name: '',
+    }),
+  });
+  const d = await r.json();
+  if (d.ok) window.location.href = `/supplies/${d.id}`;
+}
+</script>
+{% endblock %}

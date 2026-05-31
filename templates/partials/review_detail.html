@@ -1,0 +1,240 @@
+<style>
+.dw { padding: 20px 24px; max-width: 820px; width: 100%; }
+.dh { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; font-size:13px; color:var(--text-muted); }
+.dh strong { color:var(--text); }
+.pc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; display:flex; gap:14px; align-items:center; margin-bottom:14px; }
+.pc img,.pc .ni { width:56px; height:56px; border-radius:8px; flex-shrink:0; }
+.pc .ni { background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:24px; }
+.rc { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; margin-bottom:14px; }
+.rt { font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
+.rf { display:flex; gap:10px; margin-bottom:8px; font-size:14px; }
+.rl { color:var(--text-muted); min-width:90px; flex-shrink:0; }
+.rtb { background:var(--surface2); border-radius:6px; padding:12px 14px; font-size:14px; line-height:1.65; margin-top:6px; font-style:italic; }
+.resp-text { font-size:14px; line-height:1.7; color:var(--text); padding:2px 0; white-space:pre-wrap; }
+.resp-area { width:100%; border:1px solid var(--border); border-radius:6px; padding:12px; font-size:14px; resize:vertical; min-height:120px; outline:none; transition:border-color .15s; line-height:1.65; }
+.resp-area:focus { border-color:var(--primary); }
+.cb { display:flex; justify-content:space-between; align-items:center; margin-top:5px; font-size:12px; color:var(--text-muted); }
+.cb.over { color:var(--red); }
+.ab { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.fr { display:flex; justify-content:space-between; align-items:center; margin-top:4px; flex-wrap:wrap; gap:10px; }
+.pb { background:var(--green-light); border-radius:6px; padding:12px 14px; font-size:14px; line-height:1.65; color:#0f5e3f; }
+.ai-spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(0,80,255,.2); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:4px; }
+</style>
+
+<div class="dw">
+  <div class="dh">
+    <strong>OZON</strong> ·
+    {% if review.ozon_sku %}<strong>Арт. {{ review.ozon_sku }}</strong> · {% endif %}
+    {{ review.author_name or 'Скрытое имя' }}
+    <div style="margin-left:auto">
+      {% set lm = {'new':'Новый','pending_approval':'На проверке','posted':'Опубликован','rejected':'Отклонён','error':'Ошибка','auto_posting':'Публикуется'} %}
+      <span class="badge badge-{{ review.status }}">{{ lm.get(review.status, review.status) }}</span>
+    </div>
+  </div>
+
+  <!-- Карточка товара -->
+  <div class="pc">
+    {% if review.image_url %}
+    <img src="{{ review.image_url }}" alt="">
+    {% else %}<div class="ni">📦</div>{% endif %}
+    <div style="flex:1;min-width:0">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">{{ review.product_name or 'Без названия' }}</div>
+      <div style="font-size:12px;color:var(--text-muted)">{{ review.product_id or '' }}</div>
+    </div>
+    {% if review.ozon_product_url %}
+    <a href="{{ review.ozon_product_url }}" target="_blank" class="btn btn-ghost btn-sm">Подробнее ↗</a>
+    {% endif %}
+  </div>
+
+  <!-- Отзыв -->
+  <div class="rc">
+    <div class="rt">
+      Отзыв на товар
+      <span style="font-weight:400;color:var(--text-light)">{{ review.review_created_at.strftime('%d.%m.%Y %H:%M') if review.review_created_at else '' }}</span>
+    </div>
+    <div class="rf">
+      <span class="rl">Оценка</span>
+      <span class="stars">{% for i in range(1,6) %}<span class="{{ 'star-fill' if i<=review.rating else 'star-empty' }}">★</span>{% endfor %}</span>
+    </div>
+    {% if review.purchase_verified is not none %}
+    <div class="rf">
+      <span class="rl">Статус</span>
+      {% if review.purchase_verified %}<span class="badge badge-verified">✓ Выкуп</span>
+      {% else %}<span style="color:var(--text-muted);font-size:13px">Не подтверждён</span>{% endif %}
+    </div>
+    {% endif %}
+    {% if review.review_text %}
+    <div class="rf" style="flex-direction:column">
+      <span class="rl">Комментарий</span>
+      <div class="rtb">"{{ review.review_text }}"</div>
+    </div>
+    {% else %}
+    <div class="rf"><span class="rl">Комментарий</span><span style="color:var(--text-light);font-style:italic">Только оценка</span></div>
+    {% endif %}
+    {% if review.error_message and review.status == 'error' %}
+    <div style="margin-top:10px;background:var(--red-light);border-radius:6px;padding:10px 12px;font-size:13px;color:#7a1c1c">⚠ {{ review.error_message }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Ответ -->
+  <div class="rc">
+    <div class="rt">
+      <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--primary)">✦</span> Ответ на отзыв</span>
+      {% if review.status not in ['posted','rejected'] %}
+      <button class="btn-text" id="edit-btn" onclick="toggleEdit()">Редактировать</button>
+      {% endif %}
+    </div>
+
+    {% if review.status == 'posted' %}
+      <div class="pb">{{ review.final_response or '—' }}</div>
+      <div class="fr" style="margin-top:10px">
+        {% if review.posted_at %}<div style="font-size:12px;color:var(--text-muted)">Опубликовано {{ review.posted_at.strftime('%d.%m.%Y %H:%M') }}</div>{% endif %}
+        <a href="https://seller.ozon.ru/app/reviews?reviewId={{ review.ozon_review_id }}" target="_blank" class="btn btn-ghost btn-sm">↗ Проверить на Ozon</a>
+      </div>
+    {% elif review.status == 'rejected' %}
+      <div style="color:var(--text-muted);font-size:14px">Отзыв отклонён — ответ не публиковался.</div>
+    {% else %}
+      <div id="view-mode">
+        <div class="resp-text" id="resp-display">{{ review.edited_response or review.generated_response or 'Ответ генерируется…' }}</div>
+        <div class="ab">
+          <button class="btn btn-ghost btn-sm" id="improve-btn" onclick="doImprove()">Улучшить ответ</button>
+          <button class="btn btn-ghost btn-sm" id="regen-btn" onclick="doRegen()">
+            ⟳ Перегенерировать{% if review.regenerate_count > 0 %} <span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700">{{ review.regenerate_count }}</span>{% endif %}
+          </button>
+        </div>
+      </div>
+      <div id="edit-mode" style="display:none">
+        <textarea class="resp-area" id="resp-area" oninput="chCnt()" maxlength="1000">{{ review.edited_response or review.generated_response or '' }}</textarea>
+        <div class="cb" id="cb"><span style="color:var(--text-muted);font-size:12px">Лимит Ozon: 1000 символов</span><span><span id="ch-cnt">0</span> / 1000</span></div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if review.status not in ['posted','rejected'] %}
+  <div class="fr">
+    <button class="btn btn-ghost btn-sm" onclick="doArchive()">В архив</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-red" id="reject-btn" onclick="doReject()">Отклонить</button>
+      {% if review.status in ['pending_approval', 'error'] and (review.edited_response or review.generated_response) %}
+      <button class="btn btn-green" id="approve-btn" onclick="doApprove()">Одобрить и опубликовать</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+const RID = {{ review.id }};
+let editActive = false;
+
+function _setLoading(btn, text) {
+  btn.disabled = true;
+  btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
+  btn.innerHTML = `<span class="ai-spin"></span>${text}`;
+}
+function _resetBtn(btn) {
+  btn.disabled = false;
+  btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+}
+function _setText(text) {
+  document.getElementById('resp-display').textContent = text;
+  const ta = document.getElementById('resp-area');
+  if (ta) { ta.value = text; chCnt(); }
+}
+
+function toggleEdit() {
+  editActive = !editActive;
+  document.getElementById('view-mode').style.display = editActive ? 'none' : 'block';
+  document.getElementById('edit-mode').style.display = editActive ? 'block' : 'none';
+  document.getElementById('edit-btn').textContent = editActive ? 'Готово' : 'Редактировать';
+  if (editActive) { chCnt(); document.getElementById('resp-area').focus(); }
+  else { _saveDraft(); }
+}
+
+function chCnt() {
+  const len = document.getElementById('resp-area').value.length;
+  document.getElementById('ch-cnt').textContent = len;
+  document.getElementById('cb').classList.toggle('over', len >= 950);
+}
+
+async function _saveDraft() {
+  const text = document.getElementById('resp-area').value;
+  await fetch(`/api/reviews/${RID}/response`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({edited_response: text})
+  });
+  document.getElementById('resp-display').textContent = text;
+}
+
+function _currentText() {
+  if (editActive) return document.getElementById('resp-area').value.trim();
+  return document.getElementById('resp-display').textContent.trim();
+}
+
+async function doRegen() {
+  const btn = document.getElementById('regen-btn');
+  _setLoading(btn, ' Генерируем…');
+  try {
+    const r = await fetch(`/api/reviews/${RID}/regenerate`, {method:'POST'});
+    if (r.ok) {
+      const d = await r.json();
+      _setText(d.generated_response || '');
+      btn.dataset.orig = `⟳ Перегенерировать <span style="background:var(--primary-light);color:var(--primary);border-radius:10px;padding:1px 5px;font-size:10px;font-weight:700">${d.regenerate_count}</span>`;
+      showToast('Новый вариант готов');
+    } else { showToast('Ошибка генерации', true); }
+  } catch { showToast('Ошибка соединения', true); }
+  _resetBtn(btn);
+}
+
+async function doImprove() {
+  const btn = document.getElementById('improve-btn');
+  _setLoading(btn, ' Улучшаем…');
+  try {
+    const r = await fetch(`/api/reviews/${RID}/improve`, {method:'POST'});
+    if (r.ok) {
+      const d = await r.json();
+      _setText(d.edited_response || d.generated_response || '');
+      showToast('Ответ улучшен ✓');
+    } else { showToast('Ошибка', true); }
+  } catch { showToast('Ошибка соединения', true); }
+  _resetBtn(btn);
+}
+
+async function doApprove() {
+  const text = _currentText();
+  if (!text) { showToast('Нет текста ответа', true); return; }
+  const btn = document.getElementById('approve-btn');
+  _setLoading(btn, ' Публикуем…');
+  try {
+    const r = await fetch(`/api/reviews/${RID}/approve`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({response_text: text})
+    });
+    if (r.ok) {
+      showToast('Ответ опубликован на Ozon! ✓');
+      setTimeout(() => { if (typeof afterAction === 'function') afterAction(); }, 1200);
+    } else {
+      const d = await r.json();
+      if ((d.detail || '').includes('posted')) {
+        showToast('Уже опубликован автоматически ✓');
+        setTimeout(() => { if (typeof afterAction === 'function') afterAction(); }, 1200);
+      } else {
+        showToast(d.detail || 'Ошибка публикации', true);
+        _resetBtn(btn);
+      }
+    }
+  } catch { showToast('Ошибка соединения', true); _resetBtn(btn); }
+}
+
+async function doReject() {
+  if (!confirm('Отклонить? Ответ не будет опубликован.')) return;
+  const r = await fetch(`/api/reviews/${RID}/reject`, {method:'POST'});
+  if (r.ok) { showToast('Отзыв отклонён'); setTimeout(() => { if (typeof afterAction === 'function') afterAction(); }, 900); }
+  else showToast('Ошибка', true);
+}
+
+async function doArchive() {
+  const r = await fetch(`/api/reviews/${RID}/archive`, {method:'POST'});
+  if (r.ok) { showToast('В архив'); setTimeout(() => { if (typeof afterAction === 'function') afterAction(); }, 700); }
+}
+</script>

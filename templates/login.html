@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — Ozon Reviews</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 44px;
+      width: 380px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: #005BFF;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: white; font-weight: 700;
+    }
+    .logo-text { font-size: 18px; font-weight: 700; color: #1a1a1a; }
+    .logo-sub { font-size: 12px; color: #888; margin-top: 1px; }
+    h1 { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #666; margin-bottom: 28px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid #e0e0e0; border-radius: 10px;
+      font-size: 15px; font-family: inherit;
+      outline: none; transition: border-color .15s;
+      color: #1a1a1a;
+    }
+    input:focus { border-color: #005BFF; }
+    .btn {
+      width: 100%; padding: 12px;
+      background: #005BFF; color: white;
+      border: none; border-radius: 10px;
+      font-size: 15px; font-weight: 600;
+      cursor: pointer; margin-top: 8px;
+      transition: background .15s;
+    }
+    .btn:hover { background: #0047cc; }
+    .btn:active { background: #003aaa; }
+    .error {
+      background: #fff0f0; border: 1px solid #ffc0c0;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; color: #c0392b;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">O</div>
+      <div>
+        <div class="logo-text">Ozon Reviews</div>
+        <div class="logo-sub">Управление отзывами</div>
+      </div>
+    </div>
+
+    <h1>Вход в систему</h1>
+    <div class="subtitle">Введите логин и пароль для доступа</div>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST" action="/login">
+      <div class="field">
+        <label>Логин</label>
+        <input type="text" name="username" placeholder="Введите логин"
+          value="{{ username or '' }}" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label>Пароль</label>
+        <input type="password" name="password" placeholder="Введите пароль"
+          autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn">Войти →</button>
+    </form>
+  </div>
+</body>
+</html>

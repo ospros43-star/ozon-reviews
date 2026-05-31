@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Отзыв #{{ review.id }} — Ozon Review Bot{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+  <a href="/pending" class="btn btn-ghost btn-sm">← Назад</a>
+  <h1 style="margin:0;">Отзыв #{{ review.id }}</h1>
+  <span class="status status-{{ review.status }}">
+    {% set labels = {'new':'Новый','pending_approval':'На проверке','posted':'Опубликован','rejected':'Отклонён','error':'Ошибка','auto_posting':'Публикуется'} %}
+    {{ labels.get(review.status, review.status) }}
+  </span>
+</div>
+
+<div class="detail-grid">
+  <!-- Левая панель: данные отзыва -->
+  <div>
+    <div class="card">
+      <h2>Отзыв покупателя</h2>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-size:22px; color:var(--star); letter-spacing:2px; margin-bottom:4px;">
+          {% for i in range(1, 6) %}
+            <span{% if i > review.rating %} style="color:#d1d5db;"{% endif %}>★</span>
+          {% endfor %}
+          <span style="font-size:14px; color:var(--text-muted); font-weight:400; letter-spacing:0; margin-left:6px;">{{ review.rating }}/5</span>
+        </div>
+      </div>
+
+      <table style="font-size:14px; border:none; margin-bottom:16px;">
+        <tr><td style="padding:4px 12px 4px 0; color:var(--text-muted); white-space:nowrap; border:none;">Товар</td><td style="border:none;">{{ review.product_name or '—' }}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; color:var(--text-muted); border:none;">Автор</td><td style="border:none;">{{ review.author_name or '—' }}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; color:var(--text-muted); border:none;">Дата</td><td style="border:none;">{{ review.review_created_at.strftime('%d.%m.%Y') if review.review_created_at else '—' }}</td></tr>
+        <tr><td style="padding:4px 12px 4px 0; color:var(--text-muted); border:none;">ID Ozon</td><td style="border:none; font-family:monospace; font-size:12px;">{{ review.ozon_review_id }}</td></tr>
+      </table>
+
+      {% if review.review_text %}
+      <div style="background:var(--bg); border-radius:6px; padding:14px; font-size:14px; line-height:1.6; font-style:italic; color:var(--text);">
+        "{{ review.review_text }}"
+      </div>
+      {% else %}
+      <div style="color:var(--text-muted); font-size:14px; font-style:italic;">Покупатель не оставил текст</div>
+      {% endif %}
+
+      {% if review.error_message %}
+      <div style="margin-top:14px; background:#fee2e2; border-radius:6px; padding:12px; font-size:13px; color:#991b1b;">
+        <strong>Ошибка:</strong> {{ review.error_message }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Правая панель: ответ -->
+  <div>
+    <div class="card">
+      <h2>Ответ продавца</h2>
+
+      {% if review.status == 'posted' %}
+        <div style="background:#d1fae5; border-radius:6px; padding:14px; font-size:14px; line-height:1.6; color:#065f46;">
+          {{ review.final_response or '—' }}
+        </div>
+        {% if review.posted_at %}
+        <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">Опубликовано {{ review.posted_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        {% endif %}
+
+      {% elif review.status == 'rejected' %}
+        <div style="color:var(--text-muted); font-size:14px;">Отзыв отклонён — ответ не публиковался.</div>
+
+      {% else %}
+        <textarea id="response-text" maxlength="1000"
+          oninput="updateCounter()"
+          placeholder="Текст ответа будет сгенерирован автоматически…">{{ review.edited_response or review.generated_response or '' }}</textarea>
+        <div class="char-counter"><span id="char-count">0</span> / 1000</div>
+
+        <div class="action-bar">
+          {% if review.status == 'pending_approval' %}
+          <button class="btn btn-success" onclick="approveReview()">Одобрить и опубликовать</button>
+          {% endif %}
+          <button class="btn btn-ghost" onclick="saveDraft()">Сохранить черновик</button>
+          <button class="btn btn-ghost" onclick="regenerate()">Перегенерировать</button>
+          {% if review.status == 'pending_approval' %}
+          <button class="btn btn-danger" onclick="rejectReview()">Отклонить</button>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  const REVIEW_ID = {{ review.id }};
+
+  function updateCounter() {
+    const len = document.getElementById('response-text')?.value.length || 0;
+    const el = document.getElementById('char-count');
+    if (el) {
+      el.textContent = len;
+      el.parentElement.classList.toggle('over', len >= 1000);
+    }
+  }
+  updateCounter();
+
+  async function approveReview() {
+    const text = document.getElementById('response-text').value.trim();
+    if (!text) { showToast('Введите текст ответа', true); return; }
+    if (!confirm('Опубликовать ответ на Ozon?')) return;
+    const r = await fetch(`/api/reviews/${REVIEW_ID}/approve`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({response_text: text}),
+    });
+    if (r.ok) { showToast('Ответ опубликован!'); setTimeout(() => location.href='/pending', 1500); }
+    else { const d = await r.json(); showToast(d.detail || 'Ошибка', true); }
+  }
+
+  async function saveDraft() {
+    const text = document.getElementById('response-text').value;
+    const r = await fetch(`/api/reviews/${REVIEW_ID}/response`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({edited_response: text}),
+    });
+    if (r.ok) showToast('Черновик сохранён');
+    else showToast('Ошибка сохранения', true);
+  }
+
+  async function regenerate() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Генерируем…';
+    const r = await fetch(`/api/reviews/${REVIEW_ID}/regenerate`, {method: 'POST'});
+    if (r.ok) {
+      const d = await r.json();
+      document.getElementById('response-text').value = d.generated_response || '';
+      updateCounter();
+      showToast('Ответ перегенерирован');
+    } else { showToast('Ошибка генерации', true); }
+    btn.disabled = false;
+    btn.textContent = 'Перегенерировать';
+  }
+
+  async function rejectReview() {
+    if (!confirm('Отклонить отзыв? Ответ не будет опубликован.')) return;
+    const r = await fetch(`/api/reviews/${REVIEW_ID}/reject`, {method: 'POST'});
+    if (r.ok) { showToast('Отзыв отклонён'); setTimeout(() => location.href='/pending', 1500); }
+    else showToast('Ошибка', true);
+  }
+</script>
+{% endblock %}

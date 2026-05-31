@@ -1,0 +1,30 @@
+# Виртуальное окружение
+.venv/
+python/
+
+# База данных (не заливаем в репозиторий)
+*.db
+*.db-wal
+*.db-shm
+
+# Секреты
+.env
+
+# Кеш кук
+.ozon_session_cache.json
+transit_stock.json
+import_progress.json
+response_settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# macOS
+.DS_Store
+
+# Логи
+*.log

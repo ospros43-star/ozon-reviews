@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Создать поставку{% endblock %}
+
+{% block extra_styles %}
+.form-wrap { flex:1; min-height:0; overflow-y:auto; padding:24px; background:var(--bg); }
+.form-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 32px; max-width:800px; margin:0 auto; }
+.form-title { font-size:18px; font-weight:700; color:var(--text); margin-bottom:24px; }
+
+/* Поля */
+.field { margin-bottom:20px; }
+.field label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:7px; text-transform:uppercase; letter-spacing:.4px; }
+.field input[type=date], .field select, .field input[type=number] {
+  width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+  font-size:14px; font-family:inherit; background:var(--surface); color:var(--text);
+  outline:none; box-sizing:border-box; transition:border-color .15s;
+}
+.field input:focus, .field select:focus { border-color:var(--primary); }
+
+/* Кластеры — компактные чипы */
+.clusters-grid { display:flex; flex-wrap:wrap; gap:6px; }
+.cluster-check { display:flex; align-items:center; gap:5px; padding:5px 10px; border:1.5px solid var(--border); border-radius:20px; cursor:pointer; transition:all .15s; user-select:none; background:var(--surface); }
+.cluster-check:hover { border-color:var(--primary); background:var(--primary-light); }
+.cluster-check input { width:13px; height:13px; cursor:pointer; accent-color:var(--primary); flex-shrink:0; }
+.cluster-check span { font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
+.cluster-check.checked { border-color:var(--primary); background:var(--primary-light); }
+.cluster-check.checked span { color:var(--primary); }
+
+/* Слайдер */
+.slider-row { display:flex; align-items:center; gap:12px; }
+.slider-val { min-width:52px; text-align:center; font-size:16px; font-weight:700; color:var(--primary); }
+input[type=range] { flex:1; accent-color:var(--primary); }
+
+/* Кнопки */
+.form-actions { display:flex; gap:12px; justify-content:flex-end; margin-top:28px; padding-top:20px; border-top:1px solid var(--border); }
+
+/* Разделитель */
+.field-group { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:600px) { .field-group { grid-template-columns:1fr; } }
+
+/* Loading overlay */
+#supply-loading {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.45); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+.supply-loading-card {
+  background:var(--surface); border-radius:20px; padding:44px 52px;
+  text-align:center; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.supply-loading-title { font-size:18px; font-weight:700; color:var(--text); margin:20px 0 8px; }
+.supply-loading-sub { font-size:13px; color:var(--text-muted); line-height:1.5; }
+.supply-loading-hint { font-size:11px; color:var(--text-muted); margin-top:16px; opacity:.7; }
+@keyframes spin2 { to { transform:rotate(360deg); } }
+.supply-spin { animation:spin2 .9s linear infinite; }
+{% endblock %}
+
+{% block content %}
+<!-- Loading overlay -->
+<div id="supply-loading">
+  <div class="supply-loading-card">
+    <svg class="supply-spin" width="48" height="48" viewBox="0 0 24 24" fill="none"
+      stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    <div class="supply-loading-title">Загружаем данные</div>
+    <div class="supply-loading-sub">Получаем остатки и продажи<br>по всем товарам на складах Ozon</div>
+    <div class="supply-loading-hint">Обычно занимает 5–20 секунд</div>
+  </div>
+</div>
+
+<div style="flex:1;min-height:0;overflow-y:auto;background:var(--bg);padding:24px">
+  <div style="max-width:800px;margin:0 auto">
+
+    <!-- Заголовок -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+      <a href="/supplies" style="color:var(--text-muted);text-decoration:none;font-size:13px">← Поставки</a>
+      <span style="color:var(--border)">/</span>
+      <span style="font-size:13px;color:var(--text-muted)">Новая поставка</span>
+    </div>
+
+    <form method="POST" action="/supplies/products" id="supply-form">
+      <div class="form-card">
+        <div class="form-title">Параметры расчёта поставки</div>
+
+        <div class="field-group">
+          <!-- Дата поставки -->
+          <div class="field">
+            <label>Дата поставки</label>
+            <input type="date" name="delivery_date" required
+              min="{{ tomorrow }}" value="{{ default_date }}">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
+              Дата отгрузки товара на Ozon
+            </div>
+          </div>
+
+          <!-- Кластер отгрузки -->
+          <div class="field">
+            <label>Кластер отгрузки</label>
+            <select name="source_cluster" required>
+              {% for c in clusters %}
+              <option value="{{ c.id }}" {% if c.id == 'msk' %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
+              Откуда вы отгружаете товар
+            </div>
+          </div>
+        </div>
+
+        <!-- Кластеры поставки -->
+        <div class="field">
+          <label>Кластеры поставки</label>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="selectAll()">Выбрать все</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="clearAll()">Снять все</button>
+          </div>
+          <div class="clusters-grid" id="clusters-grid">
+            {% for c in clusters %}
+            <label class="cluster-check checked" id="lbl-{{ c.id }}">
+              <input type="checkbox" name="clusters" value="{{ c.id }}" checked
+                onchange="toggleCheck(this)">
+              <span>{{ c.name }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px">
+            Расчёт будет сделан только для выбранных кластеров
+          </div>
+        </div>
+
+        <div class="field-group">
+          <!-- Дней для анализа -->
+          <div class="field">
+            <label>Дней для анализа</label>
+            <div class="slider-row">
+              <input type="range" name="analysis_days" min="7" max="90" value="28"
+                oninput="document.getElementById('analysis-val').textContent=this.value">
+              <span class="slider-val" id="analysis-val">28</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
+              Среднее кол-во продаж за этот период
+            </div>
+          </div>
+
+          <!-- Дней загрузки склада -->
+          <div class="field">
+            <label>Загрузить склад на дней</label>
+            <div class="slider-row">
+              <input type="range" name="target_days" min="7" max="90" value="30"
+                oninput="document.getElementById('target-val').textContent=this.value">
+              <span class="slider-val" id="target-val">30</span>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:5px">
+              Сколько дней запаса нужно создать
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a href="/supplies" class="btn btn-ghost">Отмена</a>
+          <button type="submit" class="btn btn-primary" id="calc-btn">
+            Выбрать товары →
+          </button>
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function toggleCheck(input) {
+  const lbl = document.getElementById('lbl-' + input.value);
+  lbl.classList.toggle('checked', input.checked);
+}
+
+function selectAll() {
+  document.querySelectorAll('#clusters-grid input').forEach(cb => {
+    cb.checked = true;
+    toggleCheck(cb);
+  });
+}
+
+function clearAll() {
+  document.querySelectorAll('#clusters-grid input').forEach(cb => {
+    cb.checked = false;
+    toggleCheck(cb);
+  });
+}
+
+document.getElementById('supply-form').addEventListener('submit', e => {
+  const checked = document.querySelectorAll('#clusters-grid input:checked');
+  if (!checked.length) {
+    e.preventDefault();
+    alert('Выберите хотя бы один кластер поставки');
+    return;
+  }
+  const btn = document.getElementById('calc-btn');
+  btn.disabled = true;
+  btn.textContent = 'Загружаем…';
+  document.getElementById('supply-loading').style.display = 'flex';
+});
+</script>
+{% endblock %}

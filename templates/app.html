@@ -1,0 +1,1247 @@
+{% extends "base.html" %}
+{% block title %}Отзывы — Ozon Reviews{% endblock %}
+
+{% block extra_styles %}
+/* ── Общий layout ── */
+.page-wrap { display: flex; flex-direction: column; flex: 1; height: 100vh; overflow: hidden; }
+
+/* ── Топ-бар статистики ── */
+.stats-bar {
+  display: flex; align-items: center; gap: 0;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; overflow-x: auto;
+}
+.stat-cell {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px 20px; border-right: 1px solid var(--border);
+  min-width: 110px; flex-shrink: 0;
+  cursor: pointer; transition: background .15s; user-select: none;
+}
+.stat-cell:hover { background: var(--surface2); }
+.stat-cell.active { background: var(--primary-light); border-bottom: 2px solid var(--primary); }
+.stat-cell .val { font-size: 22px; font-weight: 700; line-height: 1; }
+.stat-cell .lbl { font-size: 10px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; }
+.stat-cell.blue .val  { color: var(--primary); }
+.stat-cell.green .val { color: var(--green); }
+.stat-cell.orange .val{ color: var(--orange); }
+.stat-cell.red .val   { color: var(--red); }
+.coverage-cell { padding: 10px 20px; display: flex; flex-direction: column; gap: 5px; min-width: 160px; border-right: 1px solid var(--border); }
+.coverage-cell .cv-top { display: flex; justify-content: space-between; font-size: 11px; }
+.coverage-cell .cv-top .cv-label { color: var(--text-muted); }
+.coverage-cell .cv-top .cv-val { font-weight: 700; color: var(--green); }
+.coverage-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.coverage-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width .5s; }
+.stats-actions { display: flex; align-items: center; gap: 8px; padding: 8px 16px; margin-left: auto; flex-shrink: 0; }
+
+/* ── Панель управления ── */
+.controls-bar {
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.tab-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; font-weight: 600; background: transparent; color: var(--text-muted); cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 5px; }
+.tab-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+.tab-btn .cnt { background: rgba(255,255,255,.3); border-radius: 10px; padding: 0 5px; font-size: 10px; }
+.tab-btn:not(.active) .cnt { background: var(--red); color: white; }
+.search-wrap { position: relative; flex: 0 0 260px; }
+.search-wrap input { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px 6px 30px; font-size: 13px; outline: none; background: var(--surface2); }
+.search-wrap input:focus { border-color: var(--primary); background: white; }
+.search-wrap .si { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; pointer-events: none; }
+.sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+.flt { border:1px solid var(--border); background:var(--surface); color:var(--text-muted); border-radius:20px; padding:4px 10px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; }
+.flt:hover { border-color:var(--primary); color:var(--primary); }
+.flt.active { background:var(--primary); border-color:var(--primary); color:white; }
+.pstat-cell { display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:10px 20px;border-right:1px solid var(--border);cursor:pointer;transition:background .15s;min-width:110px; }
+.pstat-cell:hover { background:var(--surface2); }
+.pstat-cell.active { background:var(--primary-light); }
+.pstat-cell.orange .pstat-val { color:var(--orange); }
+.pstat-cell.blue .pstat-val { color:var(--primary); }
+.pstat-cell.green .pstat-val { color:var(--green); }
+.pstat-val { font-size:20px;font-weight:700;color:var(--text);line-height:1; }
+.pstat-lbl { font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px; }
+.pstat-coverage { display:flex;flex-direction:column;justify-content:center;padding:10px 20px;min-width:130px; }
+.date-btns { display:flex; gap:5px; align-items:center; }
+.dflt { border:1px solid var(--border); background:var(--surface); color:var(--text-muted); border-radius:20px; padding:4px 11px; font-size:12px; font-weight:500; cursor:pointer; transition:all .15s; white-space:nowrap; }
+.dflt:hover { border-color:var(--primary); color:var(--primary); }
+.dflt.active { background:var(--primary-light); border-color:var(--primary); color:var(--primary); font-weight:700; }
+.dflt-cal { display:flex; align-items:center; gap:5px; }
+.dflt-cal svg { flex-shrink:0; }
+
+/* ── Таблица отзывов ── */
+.table-wrap { flex: 1; overflow-y: auto; background: var(--surface); }
+.rv-table { width: 100%; border-collapse: collapse; }
+.rv-table thead { position: sticky; top: 0; z-index: 10; }
+.rv-table thead th {
+  padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px;
+  background: var(--surface2); border-bottom: 2px solid var(--border); white-space: nowrap;
+}
+.rv-table tbody tr { border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; }
+.rv-table tbody tr:hover { background: var(--surface2); }
+.rv-table tbody tr.active { background: var(--primary-light); }
+.rv-table tbody td { padding: 10px 12px; vertical-align: middle; }
+
+.rv-thumb { width: 40px; height: 40px; border-radius: 6px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; overflow: hidden; }
+.rv-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+.rv-product { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.rv-sku { font-size: 11px; color: var(--text-light); }
+.rv-text { font-size: 12px; color: var(--text-muted); max-width: 320px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-stars { display: inline-flex; gap: 2px; }
+.rs { font-size: 18px; line-height: 1; }
+.rs-fill  { color: var(--star-fill); }
+.rs-red   { color: var(--red); }
+.rs-empty { color: var(--star-empty); }
+.rv-ans { font-size: 13px; font-weight: 700; text-align: center; }
+.rv-ans.has { color: var(--green); }
+.rv-ans.no  { color: var(--text-light); }
+.rv-date { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.rv-date .rv-time { color: var(--text-light); }
+
+.st-new     { display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#fff4e5;color:#b46a00; }
+.st-pending { display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;background:var(--primary-light);color:var(--primary); }
+.st-done    { display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;background:var(--green-light);color:#0a6641; }
+.st-error   { display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;background:var(--red-light);color:#9b2020; }
+.st-reject  { display:inline-block;padding:3px 8px;border-radius:10px;font-size:10px;font-weight:700;background:var(--red-light);color:#9b2020; }
+
+/* ── Drawer (выдвижная панель) ── */
+.drawer-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:100; }
+.drawer-backdrop.open { display:block; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 560px; max-width: 90vw;
+  background: var(--bg); z-index: 101;
+  transform: translateX(100%); transition: transform .25s ease;
+  display: flex; flex-direction: column; box-shadow: -4px 0 24px rgba(0,0,0,.12);
+  overflow-y: auto;
+}
+.drawer.open { transform: translateX(0); }
+.drawer-close {
+  position: absolute; top: 12px; right: 14px;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); z-index: 1;
+}
+.drawer-close:hover { background: var(--bg); color: var(--text); }
+
+/* ── Авто-публикация ── */
+.autopost-wrap { position:relative; }
+.autopost-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; border-radius: 20px; cursor: pointer;
+  border: 2px solid var(--border); background: var(--surface2);
+  transition: all .2s; user-select: none; white-space: nowrap;
+}
+.autopost-btn:hover { border-color: var(--green); }
+.autopost-btn.on { background: var(--green-light); border-color: var(--green); }
+.autopost-icon { font-size: 14px; line-height: 1; }
+.autopost-label {
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  transition: color .2s;
+}
+.autopost-btn.on .autopost-label { color: #0a6641; }
+.autopost-status { font-size: 11px; color: var(--text-light); transition: color .2s; }
+.autopost-btn.on .autopost-status { color: var(--green); }
+.autopost-tip {
+  display:none; position:absolute; top:calc(100% + 8px); left:0;
+  background:#1c1e26; color:white; font-size:12px; line-height:1.6;
+  padding:11px 14px; border-radius:8px; width:270px; z-index:999;
+  box-shadow:0 6px 20px rgba(0,0,0,.3); pointer-events:none;
+}
+.autopost-tip::before {
+  content:''; position:absolute; bottom:100%; left:20px;
+  border:7px solid transparent; border-bottom-color:#1c1e26;
+}
+.autopost-wrap:hover .autopost-tip { display:block; }
+
+/* ── Toggle switch ── */
+.toggle-switch { position:relative; display:inline-block; cursor:pointer; }
+.toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track { display:block; width:32px; height:18px; background:var(--border); border-radius:9px; transition:background .2s; }
+.autopost-btn.on .toggle-track { background:var(--green); }
+.toggle-thumb { position:absolute; top:2px; left:2px; width:14px; height:14px; background:white; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.autopost-btn.on .toggle-thumb { transform:translateX(14px); }
+
+/* ── CSS-тогл для настроек (без JS-хаков, реагирует на :checked) ── */
+.rs-toggle { position:relative; display:inline-flex; align-items:center; cursor:pointer; flex-shrink:0; }
+.rs-toggle input { opacity:0; width:0; height:0; position:absolute; }
+.rs-toggle .rt { display:block; width:32px; height:18px; background:var(--border); border-radius:9px; transition:background .2s; position:relative; }
+.rs-toggle input:checked + .rt { background:var(--green); }
+.rs-toggle .rt::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; background:white; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+.rs-toggle input:checked + .rt::after { transform:translateX(14px); }
+
+/* ── Прогресс фоновых задач ── */
+.task-bar { display:none; align-items:center; gap:10px; padding:7px 16px; background:var(--primary-light); border-bottom:1px solid #c8d8ff; font-size:12px; color:var(--primary); flex-shrink:0; }
+.task-bar.show { display:flex; }
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+
+  <!-- Шапка: название и рейтинг магазина -->
+  {% if seller and seller.name %}
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:8px;min-width:0">
+      <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#004fee,#0a6fe8);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0">{{ seller.name[:2] }}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap">{{ seller.name }}{% if seller.form %} <span style="font-weight:400;color:var(--text-muted);font-size:12px">{{ seller.form }}</span>{% endif %}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- скрытые элементы (кнопки скрыты, функции сохранены) -->
+  <div style="display:none">
+    <button id="cookie-btn" onclick="refreshCookies()">🔑</button>
+    <button id="import-btn" onclick="document.getElementById('excel-import-input').click()">📥 Excel</button>
+    <input type="file" id="excel-import-input" accept=".xlsx,.xls" onchange="importExcel(this)">
+    <button id="bulk-btn" onclick="bulkApprove()">⚡</button>
+    <button id="regen-btn" onclick="regenErrors()">♻</button>
+  </div>
+
+  <!-- Прогресс-строка фоновых задач -->
+  <div class="task-bar" id="task-bar" style="display:none!important"></div>
+
+  <!-- Индикатор проверки новых отзывов после пробуждения -->
+  <div id="wake-poll-indicator" style="display:none;align-items:center;gap:8px;padding:6px 16px;background:var(--primary-light);border-bottom:1px solid #c8d8ff;font-size:12px;color:var(--primary);flex-shrink:0">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .8s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    Проверяем новые отзывы…
+  </div>
+
+  <!-- Панель управления -->
+  <canvas id="chart-answers" style="display:none"></canvas>
+  <div id="chart-answers-sub" style="display:none"></div>
+
+  <!-- Счётчики + кнопки автопубликации в одном блоке -->
+  <div id="period-stats-bar" style="display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+
+    <!-- Всего -->
+    <div class="pstat-cell" onclick="filterByStat('all')" title="Все отзывы">
+      <div class="pstat-val" id="cnt-all">{{ stats.total }}</div>
+      <div class="pstat-lbl">Всего</div>
+    </div>
+
+    <!-- Группа 1–3★ -->
+    <div style="display:flex;flex-direction:column;border-left:3px solid var(--red);background:rgba(229,62,62,0.03)">
+      <div style="display:flex;align-items:stretch;flex:1">
+        <div class="pstat-cell" onclick="filterByStat('pending_neg')" title="1–3★ без ответа" style="border-left:none;border-right:1px solid var(--border);min-width:100px">
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="pstat-val" id="cnt-pending-neg" style="color:var(--red)">—</span>
+          </div>
+          <div class="pstat-lbl" style="color:var(--red)">Без ответа</div>
+        </div>
+        <div class="pstat-cell" onclick="filterByStat('posted_neg')" title="1–3★ опубликовано" style="border-right:none;min-width:100px">
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="pstat-val" id="sp-posted-neg" style="color:var(--text-muted)">—</span>
+          </div>
+          <div class="pstat-lbl">Опубликовано</div>
+        </div>
+      </div>
+      <div style="padding:5px 12px 6px;border-top:1px solid rgba(229,62,62,0.15)">
+        <div class="autopost-wrap">
+          <div class="autopost-btn" id="autoneg-btn" onclick="toggleAutoNeg()" style="border-color:var(--red);padding:4px 10px;font-size:12px">
+            <span class="autopost-icon" style="color:var(--red);font-size:11px">🔴</span>
+            <span class="autopost-label" style="font-size:12px">Авто 1–3★</span>
+            <span class="autopost-status" id="autoneg-status" style="font-size:10px">Выкл</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="autoneg-toggle" onchange="toggleAutoNeg()">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+          <div class="autopost-tip">Автоматически публиковать ответы на негативные отзывы (1–3★) без ручной проверки.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Группа 4–5★ -->
+    <div style="display:flex;flex-direction:column;border-left:3px solid var(--green);background:rgba(26,173,118,0.03)">
+      <div style="display:flex;align-items:stretch;flex:1">
+        <div class="pstat-cell orange" onclick="filterByStat('pending_pos')" title="4–5★ без ответа" style="border-left:none;border-right:1px solid var(--border);min-width:100px">
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="pstat-val" id="cnt-pending-pos">—</span>
+          </div>
+          <div class="pstat-lbl" style="color:var(--orange)">Без ответа</div>
+        </div>
+        <div class="pstat-cell green" onclick="filterByStat('posted_pos')" title="4–5★ опубликовано" style="border-right:none;min-width:100px">
+          <div style="display:flex;align-items:baseline;gap:3px">
+            <span class="pstat-val" id="sp-posted-pos">—</span>
+          </div>
+          <div class="pstat-lbl">Опубликовано</div>
+        </div>
+      </div>
+      <div style="padding:5px 12px 6px;border-top:1px solid rgba(26,173,118,0.15)">
+        <div class="autopost-wrap">
+          <div class="autopost-btn" id="autopost-btn" onclick="toggleAutoPost()" style="padding:4px 10px;font-size:12px">
+            <span class="autopost-icon" style="font-size:11px">⚡</span>
+            <span class="autopost-label" style="font-size:12px">Автопубликация 4–5★</span>
+            <span class="autopost-status" id="autopost-status" style="font-size:10px">Выкл</span>
+            <label class="toggle-switch" onclick="event.stopPropagation()">
+              <input type="checkbox" id="auto-post-toggle" onchange="toggleAutoPost()">
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
+          </div>
+          <div class="autopost-tip">Отзывы 4–5★ автоматически получают AI-ответ и публикуются на Ozon.</div>
+        </div>
+      </div>
+    </div>
+
+
+    <canvas id="chart-reviews" style="display:none"></canvas>
+    <span id="chart-reviews-sub" style="display:none"></span>
+    <div style="display:none">
+    </div>
+
+    {% if seller and seller.rating %}
+    <div style="display:flex;align-items:center;justify-content:center;padding:0 18px;border-left:2px solid rgba(245,166,35,0.4);background:rgba(245,166,35,0.03);flex-direction:column;gap:2px;cursor:default;min-width:100px">
+      <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Рейтинг магазина</div>
+      <div style="display:flex;align-items:baseline;gap:3px">
+        <span style="font-size:20px;font-weight:700;color:var(--star-fill);line-height:1">{{ seller.rating }}</span>
+        <span style="font-size:16px;color:var(--star-fill);opacity:.8">★</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Настройки ответов — встроенный блок справа от рейтинга -->
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;padding:10px 20px;border-left:1px solid var(--border);flex-shrink:0;min-width:240px">
+
+      <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px">Настройки ответов</div>
+
+      <!-- Компенсация -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <span style="font-size:13px;font-weight:600;color:var(--text)">Предлагать компенсацию</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:5px">для товаров с низким рейтингом 1–3★</span>
+        </div>
+        <label class="rs-toggle">
+          <input type="checkbox" id="rs-compensation" onchange="saveRsSettings()">
+          <span class="rt"></span>
+        </label>
+      </div>
+
+      <!-- Разделитель -->
+      <div style="height:1px;background:var(--border);margin:2px 0"></div>
+
+      <!-- Подпись -->
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div>
+            <span style="font-size:13px;font-weight:600;color:var(--text)">Подпись</span>
+            <span style="font-size:11px;color:var(--text-muted);margin-left:5px">к каждому ответу</span>
+          </div>
+          <label class="rs-toggle">
+            <input type="checkbox" id="rs-sig-enabled" onchange="rsSigToggle()">
+            <span class="rt"></span>
+          </label>
+        </div>
+        <input id="rs-signature" type="text"
+          placeholder="С уважением, команда {{ seller.name if seller and seller.name else 'KEDROVICH' }}"
+          style="border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:13px;font-family:inherit;outline:none;background:var(--bg);color:var(--text);width:100%;box-sizing:border-box;transition:border-color .15s,opacity .2s;opacity:.35;pointer-events:none"
+          onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"
+          oninput="clearTimeout(this._t);this._t=setTimeout(()=>saveRsSettings(),800)">
+      </div>
+
+    </div>
+
+    <!-- скрытые для совместимости -->
+    <span id="sp-coverage" style="display:none">—</span>
+    <div id="sp-coverage-fill" style="display:none"></div>
+
+    <!-- скрытые элементы для совместимости -->
+    <span id="cnt-pending" style="display:none">{{ stats.pending_unarchived }}</span>
+    <span id="sp-posted-today" style="display:none">—</span>
+    <span id="sp-posted-total" style="display:none">—</span>
+    <span id="lbl-posted-today" style="display:none"></span>
+    <span id="lbl-posted-total" style="display:none"></span>
+    <span id="tab-cnt-pending" style="display:none">{{ stats.pending_unarchived }}</span>
+    <span id="tab-cnt-all" style="display:none">{{ stats.total }}</span>
+  </div>
+
+  <!-- Панель дат и поиска -->
+  <div class="controls-bar">
+    <div id="filter-bar" style="display:none"></div>
+    <div class="date-btns">
+      <button class="dflt" id="dflt-yesterday" onclick="setDatePreset('yesterday',this)">Вчера</button>
+      <button class="dflt" id="dflt-today" onclick="setDatePreset('today',this)">Сегодня</button>
+      <button class="dflt" id="dflt-7d" onclick="setDatePreset('7d',this)">7 дней</button>
+      <button class="dflt" id="dflt-28d" onclick="setDatePreset('28d',this)">28 дней</button>
+      <input type="text" id="date-picker-input" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0">
+      <button class="dflt dflt-cal" id="dflt-cal" style="display:none" onclick="openDatePicker()">
+        <span id="dflt-cal-label"></span>
+      </button>
+    </div>
+    <div class="sep"></div>
+    <div class="search-wrap">
+      <span class="si">🔍</span>
+      <input type="text" placeholder="Поиск по товару, автору, тексту…" oninput="handleSearch(this.value)">
+    </div>
+  </div>
+
+  <!-- Подсказка периода -->
+  <div id="period-hint" style="display:none">
+    <svg id="period-hint-icon"></svg>
+    <span id="period-hint-text"></span>
+    <button id="period-hint-clear" onclick="clearDateFilter()"></button>
+  </div>
+
+  <!-- Таблица отзывов -->
+  <div class="table-wrap">
+    <div id="review-list-inner">
+      <div style="padding:48px;text-align:center;color:var(--text-muted)">
+        <div class="spinner" style="border-color:rgba(0,80,255,.15);border-top-color:var(--primary);width:28px;height:28px;border-width:3px;margin:0 auto 12px"></div>
+        Загрузка…
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Backdrop -->
+<div class="drawer-backdrop" id="drawer-backdrop" onclick="closeDrawer()"></div>
+
+<!-- Drawer -->
+<div class="drawer" id="drawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  <div id="drawer-content" style="padding:20px 24px 40px"></div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+let currentTab = 'pending';
+let currentFilter = '';
+let currentStatus = '';   // прямой фильтр по статусу из топ-бара
+let currentToday = false;
+let searchTimer = null;
+let currentReviewId = null;
+let currentDateFrom = '';
+let currentDateTo = '';
+let _fp = null;
+let _chartHighlightFrom = '';
+let _chartHighlightTo = '';
+let _selectedChartDay = null;
+
+// При открытии — 28 дней, все отзывы
+setDatePreset('28d', document.getElementById('dflt-28d'));
+loadAutoPostState();
+loadCharts();
+updatePeriodHint();
+loadRsSettings();
+
+function filterByStat(mode) {
+  // Сбрасываем статусные фильтры, НО сохраняем дату если она выбрана
+  currentStatus = '';
+  currentToday = false;
+  currentFilter = '';
+
+  // Подсветка активной ячейки
+  document.querySelectorAll('.pstat-cell').forEach(c => c.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+
+  if (mode === 'pending') {
+    currentTab = 'all';
+    currentStatus = 'pending_approval';
+  } else if (mode === 'pending_neg') {
+    currentTab = 'all';
+    currentStatus = 'pending_approval';
+    currentFilter = 'negative';
+  } else if (mode === 'pending_pos') {
+    currentTab = 'all';
+    currentStatus = 'pending_approval';
+    currentFilter = 'positive';
+  } else if (mode === 'posted_neg') {
+    currentTab = 'all';
+    currentStatus = 'posted';
+    currentFilter = 'negative';
+  } else if (mode === 'posted_pos') {
+    currentTab = 'all';
+    currentStatus = 'posted';
+    currentFilter = 'positive';
+  } else if (mode === 'today') {
+    currentTab = 'all';
+    currentStatus = 'posted';
+    // Если нет фильтра по дате — показываем за сегодня
+    if (!currentDateFrom) {
+      currentToday = true;
+    }
+  } else if (mode === 'posted') {
+    currentTab = 'all';
+    currentStatus = 'posted';
+  } else { // all
+    currentTab = 'all';
+  }
+
+  loadList();
+  updatePeriodHint();
+  closeDrawer();
+}
+
+function setFilter(btn, filter) {
+  currentFilter = filter;
+  currentStatus = '';
+  currentToday = false;
+  document.querySelectorAll('.stat-cell').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.flt').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  // Не сбрасываем дату — фильтр рейтинга и дата работают вместе
+  loadList();
+}
+
+function handleSearch(q) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadList(q), 350);
+}
+
+function _todayStr(offset = 0) {
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  // Локальное время (не UTC), чтобы совпадало с московским временем на сервере
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function _clearDateBtns() {
+  document.querySelectorAll('.dflt').forEach(b => b.classList.remove('active'));
+  document.getElementById('dflt-cal-label').textContent = 'Дата';
+}
+
+function setDatePreset(preset, btn) {
+  _clearDateBtns();
+  btn.classList.add('active');
+  if (preset === 'today') {
+    currentDateFrom = currentDateTo = _todayStr();
+  } else if (preset === 'yesterday') {
+    currentDateFrom = currentDateTo = _todayStr(-1);
+  } else if (preset === '7d') {
+    currentDateFrom = _todayStr(-6); currentDateTo = _todayStr();
+  } else if (preset === '28d') {
+    currentDateFrom = _todayStr(-27); currentDateTo = _todayStr();
+  }
+  // При фильтре по дате показываем все отзывы, не только pending
+  currentTab = 'all';
+  currentStatus = '';
+  document.querySelectorAll('.stat-cell').forEach(c => c.classList.remove('active'));
+  loadList();
+  loadCharts(currentDateFrom, currentDateTo);
+  refreshCounts();
+  updatePeriodHint();
+}
+
+function clearDateFilter() {
+  currentDateFrom = currentDateTo = '';
+  _selectedChartDay = null;
+  _chartHighlightFrom = _chartHighlightTo = '';
+  _clearDateBtns();
+  loadList();
+  loadCharts();
+}
+
+function openDatePicker() {
+  if (!_fp) {
+    _fp = flatpickr('#date-picker-input', {
+      mode: 'range',
+      dateFormat: 'Y-m-d',
+      locale: {
+        rangeSeparator: ' — ',
+        weekdays: { shorthand: ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'], longhand: ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'] },
+        months: { shorthand: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'], longhand: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'] },
+        firstDayOfWeek: 1,
+      },
+      showMonths: 1,
+      maxDate: 'today',
+      onClose(dates) {
+        const _localDate = d => { const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; };
+        if (dates.length === 2) {
+          _clearDateBtns();
+          currentDateFrom = _localDate(dates[0]);
+          currentDateTo = _localDate(dates[1]);
+          const fmt = d => d.toLocaleDateString('ru', {day:'2-digit', month:'2-digit'});
+          document.getElementById('dflt-cal-label').textContent = `${fmt(dates[0])} – ${fmt(dates[1])}`;
+          document.getElementById('dflt-cal').classList.add('active');
+          currentTab = 'all'; currentStatus = '';
+          document.querySelectorAll('.stat-cell').forEach(c => c.classList.remove('active'));
+          loadList(); loadCharts(currentDateFrom, currentDateTo);
+        } else if (dates.length === 1) {
+          _clearDateBtns();
+          currentDateFrom = currentDateTo = _localDate(dates[0]);
+          const fmt = d => d.toLocaleDateString('ru', {day:'2-digit', month:'2-digit'});
+          document.getElementById('dflt-cal-label').textContent = fmt(dates[0]);
+          document.getElementById('dflt-cal').classList.add('active');
+          currentTab = 'all'; currentStatus = '';
+          document.querySelectorAll('.stat-cell').forEach(c => c.classList.remove('active'));
+          loadList(); loadCharts(currentDateFrom, currentDateTo);
+        }
+      },
+    });
+  }
+  _fp.open();
+}
+
+async function loadList(q = '') {
+  updatePeriodHint();
+  const inner = document.getElementById('review-list-inner');
+  inner.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted)"><div class="spinner" style="border-color:rgba(0,80,255,.15);border-top-color:var(--primary);width:28px;height:28px;border-width:3px;margin:0 auto 12px"></div>Загрузка…</div>';
+  const params = new URLSearchParams({tab: currentTab});
+  if (q) params.set('q', q);
+  if (currentFilter) params.set('filter', currentFilter);
+  if (currentStatus) params.set('status', currentStatus);
+  if (currentToday) params.set('today', 'true');
+  if (currentDateFrom) params.set('date_from', currentDateFrom);
+  if (currentDateTo) params.set('date_to', currentDateTo);
+  try {
+    inner.innerHTML = await (await fetch(`/partials/reviews?${params}`)).text();
+    // подсветить активную строку если drawer открыт
+    if (currentReviewId) {
+      document.querySelectorAll('.rv-table tr[data-id]').forEach(el =>
+        el.classList.toggle('active', el.dataset.id == currentReviewId));
+    }
+  } catch {
+    inner.innerHTML = '<div style="padding:24px;color:red;text-align:center">Ошибка загрузки</div>';
+  }
+}
+
+function openReview(id) {
+  currentReviewId = id;
+  document.querySelectorAll('.rv-table tr[data-id]').forEach(el =>
+    el.classList.toggle('active', el.dataset.id == id));
+
+  const content = document.getElementById('drawer-content');
+  content.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><div class="spinner" style="border-color:rgba(0,80,255,.15);border-top-color:var(--primary);width:32px;height:32px;border-width:3px;margin:0 auto 12px"></div>Загрузка…</div>';
+
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawer-backdrop').classList.add('open');
+
+  fetch(`/partials/review/${id}`)
+    .then(r => r.text())
+    .then(html => {
+      content.innerHTML = html;
+      content.querySelectorAll('script').forEach(old => {
+        const s = document.createElement('script');
+        s.textContent = old.textContent;
+        document.head.appendChild(s);
+        document.head.removeChild(s);
+      });
+    })
+    .catch(() => content.innerHTML = '<div style="padding:24px;color:red">Ошибка загрузки</div>');
+}
+
+function closeDrawer() {
+  currentReviewId = null;
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawer-backdrop').classList.remove('open');
+  document.querySelectorAll('.rv-table tr[data-id]').forEach(el => el.classList.remove('active'));
+}
+
+function afterAction() {
+  loadList();
+  closeDrawer();
+  refreshCounts();
+}
+
+function _setAutoPostUI(enabled) {
+  document.getElementById('auto-post-toggle').checked = enabled;
+  document.getElementById('autopost-btn').classList.toggle('on', enabled);
+  document.getElementById('autopost-status').textContent = enabled ? 'Вкл' : 'Выкл';
+}
+
+function _setAutoNegUI(enabled) {
+  document.getElementById('autoneg-toggle').checked = enabled;
+  const btn = document.getElementById('autoneg-btn');
+  btn.classList.toggle('on', enabled);
+  if (enabled) { btn.style.borderColor = 'var(--red)'; btn.style.background = 'rgba(229,62,62,0.06)'; }
+  else { btn.style.borderColor = ''; btn.style.background = ''; }
+  document.getElementById('autoneg-status').textContent = enabled ? 'Вкл' : 'Выкл';
+}
+
+async function loadAutoPostState() {
+  try {
+    const d = await (await fetch('/api/settings')).json();
+    _setAutoPostUI(d.auto_post_enabled);
+    _setAutoNegUI(d.auto_post_negative_enabled);
+  } catch {}
+}
+
+async function toggleAutoNeg() {
+  try {
+    const params = new URLSearchParams();
+    if (currentDateFrom) params.set('priority_from', currentDateFrom);
+    if (currentDateTo) params.set('priority_to', currentDateTo);
+    const d = await (await fetch(`/api/settings/auto-post-negative?${params}`, {method:'POST'})).json();
+    _setAutoNegUI(d.auto_post_negative_enabled);
+    if (d.auto_post_negative_enabled) {
+      if (d.bulk_started) {
+        showToast(`Авто 1–3★ включена — публикуем ${d.bulk_total} отзывов`);
+        setInterval(async () => { refreshCounts(); loadList(); }, 8000);
+      } else {
+        showToast('Авто-публикация 1–3★ включена');
+      }
+    } else {
+      showToast('Авто-публикация 1–3★ выключена');
+    }
+  } catch { showToast('Ошибка', true); }
+}
+
+async function toggleAutoPost() {
+  try {
+    // Передаём текущий фильтр дат для приоритетной публикации
+    const params = new URLSearchParams();
+    if (currentDateFrom) params.set('priority_from', currentDateFrom);
+    if (currentDateTo) params.set('priority_to', currentDateTo);
+    const d = await (await fetch(`/api/settings/auto-post?${params}`, {method:'POST'})).json();
+    _setAutoPostUI(d.auto_post_enabled);
+    if (d.auto_post_enabled) {
+      if (d.bulk_started) {
+        showToast(`Авто-публикация включена — в очереди ${d.bulk_total} отзывов 4–5★`);
+        // Тихо обновляем счётчики в фоне
+        _bulkTimer = setInterval(async () => {
+          try {
+            const s = await (await fetch('/api/reviews/bulk-approve/status')).json();
+            refreshCounts();
+            if (!s.running) { clearInterval(_bulkTimer); loadList(); }
+          } catch {}
+        }, 5000);
+      } else {
+        showToast('Авто-публикация 4–5★ включена');
+      }
+    } else {
+      // Выключение — останавливаем bulk если идёт
+      fetch('/api/reviews/bulk-approve/stop', {method:'POST'}).catch(()=>{});
+      clearInterval(_bulkTimer);
+      showToast('Авто-публикация выключена');
+    }
+  } catch { showToast('Ошибка', true); }
+}
+
+async function triggerPoll(btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Опрашиваем…'; }
+  try {
+    const d = await (await fetch('/api/poll/trigger', {method:'POST'})).json();
+    showToast(d.error ? `Ошибка: ${d.error}` : `Новых: ${d.fetched}, на проверке: ${d.pending}`, !!d.error);
+    loadList(); refreshCounts();
+  } catch { showToast('Ошибка соединения', true); }
+  if (btn) { btn.disabled = false; btn.textContent = '⟳ Проверить на Ozon'; }
+}
+
+async function importExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true; btn.textContent = '⏳ Импорт…';
+  try {
+    const r = await fetch('/api/reviews/import-excel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/octet-stream'},
+      body: file,
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast(d.message);
+      loadCharts(); loadList(); refreshCounts();
+    } else {
+      showToast(d.error || 'Ошибка импорта', true);
+    }
+  } catch { showToast('Ошибка импорта', true); }
+  btn.disabled = false; btn.textContent = '📥 Excel';
+  input.value = '';
+}
+
+async function refreshCookies() {
+  const btn = document.getElementById('cookie-btn');
+  btn.disabled = true; btn.textContent = '🔄';
+  try {
+    const d = await (await fetch('/api/refresh-session', {method:'POST'})).json();
+    if (d.ok) {
+      showToast(d.message || 'Сессия восстановлена');
+      btn.style.color = '';
+      btn.title = 'Обновить сессию Ozon';
+    } else {
+      showToast(d.message || 'Ошибка авторизации', true);
+      btn.style.color = 'var(--red)';
+    }
+  } catch { showToast('Ошибка', true); }
+  btn.disabled = false; btn.textContent = '🔑';
+}
+
+async function refreshCounts() {
+  const upd = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const setLbl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  if (currentDateFrom && currentDateTo) {
+    // Показываем статистику за выбранный период
+    try {
+      const p = await fetch(`/api/stats-by-date?date_from=${currentDateFrom}&date_to=${currentDateTo}`).then(r => r.json());
+      upd('cnt-all', p.total);
+      upd('cnt-pending', p.pending);
+      upd('cnt-pending-neg', p.pending_negative ?? 0);
+      upd('cnt-pending-pos', p.pending_positive ?? 0);
+      upd('sp-posted-neg', p.posted_negative ?? 0);
+      upd('sp-posted-pos', p.posted_positive ?? 0);
+      upd('tab-cnt-pending', p.pending);
+      upd('tab-cnt-all', p.total);
+      upd('sp-posted-today', p.posted);
+      upd('sp-posted-total', p.total > 0 ? Math.round(p.posted / p.total * 100) + '%' : '—');
+      const fill = document.getElementById('sp-coverage-fill');
+      if (fill) fill.style.width = (p.total > 0 ? Math.round(p.posted / p.total * 100) : 0) + '%';
+      upd('sp-coverage', p.total > 0 ? Math.round(p.posted / p.total * 100) + '%' : '—');
+    } catch {}
+  } else {
+    // Глобальная статистика
+    try {
+      const d = await (await fetch('/api/stats')).json();
+      upd('cnt-all', d.total);
+      upd('cnt-pending', d.pending_unarchived);
+      upd('cnt-pending-neg', d.pending_negative ?? '—');
+      upd('cnt-pending-pos', d.pending_positive ?? '—');
+      upd('sp-posted-neg', d.posted_negative ?? '—');
+      upd('sp-posted-pos', d.posted_positive ?? '—');
+      upd('tab-cnt-pending', d.pending_unarchived);
+      upd('tab-cnt-all', d.total);
+      upd('sp-posted-today', d.posted_today ?? '—');
+      upd('sp-posted-total', d.posted ?? '—');
+      upd('sp-errors', d.error ?? '—');
+      upd('sp-coverage', (d.coverage_pct ?? 0) + '%');
+      const fill = document.getElementById('sp-coverage-fill');
+      if (fill) fill.style.width = (d.coverage_pct ?? 0) + '%';
+    } catch {}
+  }
+}
+setInterval(refreshCounts, 15000);
+setInterval(() => loadList(), 30000);
+
+// ── Мгновенный опрос после пробуждения / возврата к вкладке ──
+let _hiddenAt = null;
+const WAKE_POLL_THRESHOLD = 60 * 1000; // порог: 1 минута скрытого состояния
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    _hiddenAt = Date.now();
+  } else {
+    if (_hiddenAt && (Date.now() - _hiddenAt) > WAKE_POLL_THRESHOLD) {
+      _triggerWakePoll();
+    }
+    _hiddenAt = null;
+  }
+});
+
+// Дополнительно: фокус окна (catch для случаев когда visibilitychange не срабатывает)
+let _blurAt = null;
+window.addEventListener('blur', () => { _blurAt = Date.now(); });
+window.addEventListener('focus', () => {
+  if (_blurAt && (Date.now() - _blurAt) > WAKE_POLL_THRESHOLD) {
+    _triggerWakePoll();
+  }
+  _blurAt = null;
+});
+
+let _wakePollRunning = false;
+async function _triggerWakePoll() {
+  if (_wakePollRunning) return;
+  _wakePollRunning = true;
+  const indicator = document.getElementById('wake-poll-indicator');
+  if (indicator) indicator.style.display = 'flex';
+  try {
+    await fetch('/api/poll/trigger', {method: 'POST'});
+    await Promise.all([loadList(), refreshCounts()]);
+  } catch {}
+  if (indicator) indicator.style.display = 'none';
+  _wakePollRunning = false;
+}
+
+// ── Превью картинки при наведении ──
+const _imgPreview = document.createElement('div');
+_imgPreview.style.cssText = 'position:fixed;display:none;z-index:9999;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25);pointer-events:none;width:220px;';
+_imgPreview.innerHTML = '<img style="width:100%;height:auto;display:block;">';
+document.body.appendChild(_imgPreview);
+
+document.addEventListener('mouseover', e => {
+  const thumb = e.target.closest('.rv-thumb');
+  const img = thumb?.querySelector('img');
+  if (!img?.src) return;
+  _imgPreview.querySelector('img').src = img.src;
+  _imgPreview.style.display = 'block';
+});
+
+document.addEventListener('mousemove', e => {
+  if (_imgPreview.style.display === 'none') return;
+  const x = e.clientX + 16;
+  const y = e.clientY - 110;
+  _imgPreview.style.left = Math.min(x, window.innerWidth - 236) + 'px';
+  _imgPreview.style.top = Math.max(8, y) + 'px';
+});
+
+document.addEventListener('mouseout', e => {
+  const thumb = e.target.closest('.rv-thumb');
+  if (thumb && !thumb.contains(e.relatedTarget)) {
+    _imgPreview.style.display = 'none';
+  }
+});
+
+// ── Фоновые задачи ──
+let _bulkTimer = null;
+let _regenTimer = null;
+
+function _showTaskBar(text) {
+  const bar = document.getElementById('task-bar');
+  bar.classList.add('show');
+  document.getElementById('task-bar-text').textContent = text;
+}
+function _hideTaskBar() {
+  document.getElementById('task-bar').classList.remove('show');
+}
+
+async function stopBulk() {
+  await fetch('/api/reviews/bulk-approve/stop', {method:'POST'});
+  clearInterval(_bulkTimer);
+  _hideTaskBar();
+  document.getElementById('bulk-btn').disabled = false;
+  // Сбрасываем error-отзывы 4-5★ обратно в pending, чтобы можно было повторить
+  const r = await (await fetch('/api/reviews/reset-errors', {method:'POST'})).json();
+  showToast(`Остановлено. Сброшено ${r.reset} ошибок — можно повторить после обновления куки`);
+  loadList(); refreshCounts();
+}
+
+async function regenErrors() {
+  const s = await (await fetch('/api/reviews/regen-errors/status')).json();
+  if (s.running) { showToast(`Уже идёт: ${s.done}/${s.total}`); return; }
+  if (!confirm('Перегенерировать ответы для всех отзывов с ошибкой?')) return;
+  const r = await (await fetch('/api/reviews/regen-errors', {method:'POST'})).json();
+  if (!r.started) { showToast(r.message || 'Нечего делать', true); return; }
+  showToast(`Запущено! ${r.total} отзывов`);
+  document.getElementById('regen-btn').disabled = true;
+  _showTaskBar(`Генерируем ответы: 0/${r.total}`);
+  _regenTimer = setInterval(async () => {
+    try {
+      const st = await (await fetch('/api/reviews/regen-errors/status')).json();
+      _showTaskBar(`Генерируем ответы: ${st.done}/${st.total}${st.errors ? ' · ошибок: ' + st.errors : ''}`);
+      refreshCounts();
+      if (!st.running) {
+        clearInterval(_regenTimer); _hideTaskBar();
+        document.getElementById('regen-btn').disabled = false;
+        showToast(`Готово! Перегенерировано: ${st.done - st.errors}`);
+        loadList();
+      }
+    } catch {}
+  }, 3000);
+}
+
+let _historyTimer = null;
+async function fetchHistory() {
+  const s = await (await fetch('/api/reviews/fetch-history/status')).json();
+  if (s.running) { showToast(`Уже идёт: загружено ${s.done} отзывов (стр. ${s.page})`); return; }
+  if (!confirm('Загрузить историю отзывов за 28 дней?\n\nЭто может занять несколько минут.')) return;
+  const r = await (await fetch('/api/reviews/fetch-history?days=28', {method:'POST'})).json();
+  if (!r.started) { showToast(r.error || 'Ошибка', true); return; }
+  showToast('Загрузка истории запущена…');
+  document.getElementById('history-btn').disabled = true;
+  _showTaskBar('Загрузка истории: 0 отзывов');
+  _historyTimer = setInterval(async () => {
+    try {
+      const st = await (await fetch('/api/reviews/fetch-history/status')).json();
+      _showTaskBar(`Загрузка истории: ${st.done} отзывов · стр. ${st.page}`);
+      refreshCounts();
+      if (!st.running) {
+        clearInterval(_historyTimer); _hideTaskBar();
+        document.getElementById('history-btn').disabled = false;
+        showToast(`История загружена: ${st.done} новых отзывов`);
+        loadList();
+      }
+    } catch {}
+  }, 3000);
+}
+
+async function bulkApprove() {
+  const d = await (await fetch('/api/reviews/bulk-approve/status')).json();
+  if (d.running) { showToast(`Уже идёт: ${d.done}/${d.total}`); return; }
+  if (!confirm('Опубликовать все ожидающие отзывы 4–5★ на Ozon?\n\n⚠ Задержка 10 сек между ответами (~70 мин). Процесс идёт в фоне.')) return;
+  const r = await (await fetch('/api/reviews/bulk-approve', {method:'POST'})).json();
+  if (!r.started) { showToast(r.message || 'Нечего публиковать', true); return; }
+  showToast(`Запущено! ${r.total} отзывов`);
+  document.getElementById('bulk-btn').disabled = true;
+  _showTaskBar(`Публикуем: 0/${r.total}`);
+  _bulkTimer = setInterval(async () => {
+    try {
+      const s = await (await fetch('/api/reviews/bulk-approve/status')).json();
+      _showTaskBar(`Публикуем: ${s.done}/${s.total}${s.errors ? ' · ошибок: ' + s.errors : ''}`);
+      refreshCounts();
+      if (!s.running) {
+        clearInterval(_bulkTimer); _hideTaskBar();
+        document.getElementById('bulk-btn').disabled = false;
+        showToast(`Готово! Опубликовано: ${s.done - s.errors}`);
+        loadList();
+      }
+    } catch {}
+  }, 5000);
+}
+
+// ── Графики отзывов ──────────────────────────────────────────
+let _chartReviews = null, _chartAnswers = null;
+
+function _fmtDay(iso) {
+  const [, m, d] = iso.split('-');
+  return `${d}.${m}`;
+}
+
+function _chartOpts() {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    layout: { padding: { top: 4 } },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: true, position: 'top', align: 'end',
+        labels: { boxWidth: 8, boxHeight: 8, font: { size: 10 }, color: '#8a92a6', padding: 6 } },
+      tooltip: {
+        backgroundColor: 'white', titleColor: '#1c1e26', bodyColor: '#1c1e26',
+        borderColor: '#e4e7ed', borderWidth: 1, padding: 8,
+      },
+    },
+    scales: {
+      x: { stacked: true, grid: { display: false },
+        ticks: { font: { size: 10 }, color: '#8a92a6', maxTicksLimit: 10 } },
+      y: { stacked: true, grid: { color: 'rgba(0,0,0,.04)' },
+        ticks: { font: { size: 10 }, color: '#8a92a6', precision: 0 } },
+    },
+  };
+}
+
+const NO_DATA_MSG = 'Нет данных — Ozon отдаёт только последние ~1300 отзывов. Статистика накопится со временем.';
+
+function _makeTooltipCallbacks(data, labelsFn) {
+  return {
+    title: items => items[0].label,
+    label: item => {
+      const d = data[item.dataIndex];
+      if (d && d.no_data) return NO_DATA_MSG;
+      return labelsFn(item, d);
+    },
+    afterBody: items => {
+      const d = data[items[0].dataIndex];
+      return (d && d.no_data) ? [] : [];
+    },
+  };
+}
+
+function _fmtDate(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+async function updatePeriodHint() {
+  const textEl = document.getElementById('period-hint-text');
+  const iconEl = document.getElementById('period-hint-icon');
+  const clearEl = document.getElementById('period-hint-clear');
+  if (!textEl) return;
+
+  const calIcon = '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>';
+  const warnIcon = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+
+  let text = '', color = 'var(--text-muted)', iconColor = 'var(--text-muted)', showClear = false;
+  iconEl.innerHTML = calIcon;
+
+  if (currentDateFrom && currentDateTo) {
+    showClear = true;
+    color = 'var(--primary)'; iconColor = 'var(--primary)';
+    const weekdays = ['вс','пн','вт','ср','чт','пт','сб'];
+    if (currentDateFrom === currentDateTo) {
+      const [y, m, d] = currentDateFrom.split('-');
+      const wd = weekdays[new Date(currentDateFrom).getDay()];
+      text = `${d}.${m}.${y} (${wd})`;
+    } else {
+      text = `${_fmtDate(currentDateFrom)} — ${_fmtDate(currentDateTo)}`;
+    }
+    // Загружаем статистику за период
+    try {
+      const ps = await fetch(`/api/period-stats?date_from=${currentDateFrom}&date_to=${currentDateTo}`).then(r => r.json());
+      if (ps.total > 0) {
+        text += `  ·  всего ${ps.total}  ·  опубликовано ${ps.posted}`;
+        if (ps.pending > 0) text += `  ·  ждут ответа ${ps.pending}`;
+      }
+    } catch {}
+  } else if (currentStatus === 'posted' && currentToday) {
+    color = 'var(--green)'; iconColor = 'var(--green)';
+    text = 'Отзывы, отвеченные сегодня';
+  } else if (currentTab === 'pending') {
+    color = '#b46a00'; iconColor = '#b46a00';
+    iconEl.innerHTML = warnIcon;
+    text = 'Отзывы, ожидающие ответа';
+  } else if (currentStatus === 'posted') {
+    color = 'var(--green)'; iconColor = 'var(--green)';
+    text = 'Все отвеченные отзывы';
+  } else if (currentStatus === 'error') {
+    color = 'var(--red)'; iconColor = 'var(--red)';
+    text = 'Отзывы с ошибкой публикации';
+  } else {
+    text = 'Все отзывы';
+  }
+
+  textEl.textContent = text;
+  textEl.style.color = color;
+  iconEl.style.color = iconColor;
+  clearEl.style.display = showClear ? '' : 'none';
+}
+
+function _selectChartDay(isoDay) {
+  if (_selectedChartDay === isoDay) {
+    // Повторный клик — сброс
+    _selectedChartDay = null;
+    _chartHighlightFrom = _chartHighlightTo = '';
+    currentDateFrom = currentDateTo = '';
+    _clearDateBtns();
+    currentTab = 'pending';
+  } else {
+    _selectedChartDay = isoDay;
+    _chartHighlightFrom = _chartHighlightTo = isoDay;
+    currentDateFrom = currentDateTo = isoDay;
+    _clearDateBtns();
+    const [, m, d] = isoDay.split('-');
+    document.getElementById('dflt-cal-label').textContent = `${d}.${m}`;
+    document.getElementById('dflt-cal').classList.add('active');
+    currentTab = 'all';
+    currentStatus = '';
+  }
+  document.querySelectorAll('.stat-cell').forEach(c => c.classList.remove('active'));
+
+  loadCharts();
+  loadList();
+  refreshCounts();
+  updatePeriodHint();
+}
+
+function _makeChartOptions(data) {
+  const base = _chartOpts();
+  return {
+    ...base,
+    cursor: 'pointer',
+    onClick(e, elements) {
+      if (!elements.length) return;
+      const idx = elements[0].index;
+      const d = data[idx];
+      if (d && !d.no_data) _selectChartDay(d.day);
+    },
+    plugins: {
+      ...base.plugins,
+      tooltip: {
+        ...base.plugins.tooltip,
+        callbacks: _makeTooltipCallbacks(data, (item) => `${item.dataset.label}: ${item.raw}`),
+      },
+    },
+  };
+}
+
+function renderReviewsChart(data) {
+  const labels = data.map(d => _fmtDay(d.day));
+  const pos = data.map(d => d.positive);
+  const neg = data.map(d => d.negative);
+  const totPos = pos.reduce((a, b) => a + b, 0);
+  const totNeg = neg.reduce((a, b) => a + b, 0);
+  document.getElementById('chart-reviews-sub').textContent =
+    `позитивные ${totPos} · негативные ${totNeg}`;
+  const ctx = document.getElementById('chart-reviews').getContext('2d');
+  if (_chartReviews) _chartReviews.destroy();
+  _chartReviews = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Позитивные', data: pos,
+          backgroundColor: data.map(item => item.no_data ? 'rgba(200,210,220,0.3)' : _isHighlighted(item.day) ? (item.day === _selectedChartDay ? 'rgba(26,173,118,1)' : 'rgba(26,173,118,0.8)') : 'rgba(26,173,118,0.18)'),
+          borderRadius: 2 },
+        { label: 'Негативные', data: neg,
+          backgroundColor: data.map(item => item.no_data ? 'rgba(200,210,220,0.15)' : _isHighlighted(item.day) ? (item.day === _selectedChartDay ? 'rgba(229,62,62,1)' : 'rgba(229,62,62,0.8)') : 'rgba(229,62,62,0.12)'),
+          borderRadius: 2 },
+      ],
+    },
+    options: _makeChartOptions(data),
+  });
+  document.getElementById('chart-reviews').style.cursor = 'pointer';
+  setTimeout(() => _chartReviews && _chartReviews.resize(), 50);
+}
+
+function renderAnswersChart(data) {
+  const labels = data.map(d => _fmtDay(d.day));
+  const ans = data.map(d => d.answered);
+  const unans = data.map(d => d.unanswered);
+  const totAns = ans.reduce((a, b) => a + b, 0);
+  const totUnans = unans.reduce((a, b) => a + b, 0);
+  document.getElementById('chart-answers-sub').textContent =
+    `отвечено ${totAns} · без ответа ${totUnans}`;
+  const ctx = document.getElementById('chart-answers').getContext('2d');
+  if (_chartAnswers) _chartAnswers.destroy();
+  _chartAnswers = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Отвечено', data: ans,
+          backgroundColor: data.map(item => item.no_data ? 'rgba(200,210,220,0.3)' : _isHighlighted(item.day) ? (item.day === _selectedChartDay ? 'rgba(0,79,238,0.95)' : 'rgba(0,79,238,0.7)') : 'rgba(0,79,238,0.15)'),
+          borderRadius: 2 },
+        { label: 'Без ответа', data: unans,
+          backgroundColor: data.map(item => item.no_data ? 'rgba(200,210,220,0.15)' : _isHighlighted(item.day) ? (item.day === _selectedChartDay ? 'rgba(130,146,166,0.9)' : 'rgba(180,186,200,0.6)') : 'rgba(180,186,200,0.15)'),
+          borderRadius: 2 },
+      ],
+    },
+    options: _makeChartOptions(data),
+  });
+  document.getElementById('chart-answers').style.cursor = 'pointer';
+  setTimeout(() => _chartAnswers && _chartAnswers.resize(), 50);
+}
+
+async function loadCharts(highlightFrom, highlightTo) {
+  _chartHighlightFrom = highlightFrom || currentDateFrom;
+  _chartHighlightTo   = highlightTo   || currentDateTo;
+  try {
+    const d = await fetch('/api/reviews-charts?days=28').then(r => r.json());
+    if (d.reviews && d.reviews.length) renderReviewsChart(d.reviews);
+    if (d.answers && d.answers.length) renderAnswersChart(d.answers);
+  } catch {}
+}
+
+function _isHighlighted(day) {
+  if (!_chartHighlightFrom || !_chartHighlightTo) return true; // нет выделения — все активны
+  return day >= _chartHighlightFrom && day <= _chartHighlightTo;
+}
+
+// ── Настройки ответов ────────────────────────────────────────
+async function loadRsSettings() {
+  try {
+    const d = await fetch('/api/settings/response-options').then(r => r.json());
+    const defaultSig = 'С уважением, команда {{ seller.name if seller and seller.name else "KEDROVICH" }}';
+    document.getElementById('rs-signature').value = d.signature || defaultSig;
+    document.getElementById('rs-sig-enabled').checked = !!d.signature_enabled;
+    document.getElementById('rs-compensation').checked = !!d.compensation;
+    _applySigField(!!d.signature_enabled);
+    // Если подпись была пустой — сохраняем дефолт
+    if (!d.signature) saveRsSettings();
+  } catch {}
+}
+
+function _applySigField(enabled) {
+  const ta = document.getElementById('rs-signature');
+  ta.style.opacity = enabled ? '1' : '.4';
+  ta.style.pointerEvents = enabled ? 'auto' : 'none';
+}
+
+function rsSigToggle() {
+  _applySigField(document.getElementById('rs-sig-enabled').checked);
+  saveRsSettings();
+}
+
+let _rsSaveTimer = null;
+async function saveRsSettings() {
+  clearTimeout(_rsSaveTimer);
+  _rsSaveTimer = setTimeout(async () => {
+    const sig   = document.getElementById('rs-signature').value.trim();
+    const sigOn = document.getElementById('rs-sig-enabled').checked;
+    const comp  = document.getElementById('rs-compensation').checked;
+    try {
+      await fetch('/api/settings/response-options', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({signature: sig, signature_enabled: sigOn, compensation: comp}),
+      });
+    } catch {}
+  }, 300);
+}
+</script>
+{% endblock %}

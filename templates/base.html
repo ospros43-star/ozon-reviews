@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ozon Reviews{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --surface2: #f8f9fb;
+      --border: #e4e7ed;
+      --text: #1c1e26;
+      --text-muted: #8a92a6;
+      --text-light: #b0b8c9;
+      --primary: #004fee;
+      --primary-light: #e8effe;
+      --star-fill: #f5a623;
+      --star-empty: #dde1eb;
+      --green: #1aad76;
+      --green-light: #e6f9f2;
+      --red: #e53e3e;
+      --red-light: #fff0f0;
+      --orange: #f5a623;
+      --orange-light: #fff8eb;
+      --purple: #7c3aed;
+      --sidebar-w: 340px;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; }
+    a { color: var(--primary); text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, textarea { font-family: inherit; }
+
+    /* ── Боковое меню ── */
+    .icon-nav { width: 200px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 10px; gap: 2px; flex-shrink: 0; }
+    .icon-nav .nav-icon { width: 100%; height: 40px; border-radius: 10px; display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--text-muted); font-size: 15px; cursor: pointer; transition: background .15s, color .15s; position: relative; text-decoration: none; }
+    .icon-nav .nav-icon:hover { background: var(--bg); color: var(--text); }
+    .icon-nav .nav-icon.active { background: var(--primary-light); color: var(--primary); }
+    .icon-nav .nav-icon .nav-label { font-size: 13px; font-weight: 600; }
+    .icon-nav .nav-dot { width: 7px; height: 7px; background: var(--red); border-radius: 50%; position: absolute; top: 10px; right: 10px; }
+
+    /* ── Тосты ── */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #1c1e26; color: white; padding: 12px 18px; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(8px); transition: opacity .25s, transform .25s; pointer-events: none; max-width: 320px; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--red); }
+
+    /* ── Спиннер ── */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Кнопки ── */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: var(--radius-sm); border: none; font-size: 13px; font-weight: 500; transition: background .15s, opacity .15s; white-space: nowrap; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: #003dd4; }
+    .btn-green { background: var(--green); color: white; }
+    .btn-green:hover:not(:disabled) { background: #148a5e; }
+    .btn-red { background: var(--red); color: white; }
+    .btn-red:hover:not(:disabled) { background: #c53030; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover:not(:disabled) { background: var(--bg); }
+    .btn-text { background: transparent; border: none; color: var(--primary); font-size: 13px; padding: 4px 6px; }
+    .btn-text:hover { text-decoration: underline; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* ── Бейджи ── */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-new { background: var(--primary-light); color: var(--primary); }
+    .badge-pending { background: var(--orange-light); color: #b46a00; }
+    .badge-posted { background: var(--green-light); color: #0f7a52; }
+    .badge-rejected { background: var(--red-light); color: #9b2020; }
+    .badge-error { background: var(--red-light); color: #9b2020; }
+    .badge-verified { background: var(--green-light); color: #0f7a52; font-size: 10px; }
+
+    /* ── Звёзды ── */
+    .stars { display: inline-flex; gap: 1px; font-size: 14px; }
+    .star-fill { color: var(--star-fill); }
+    .star-fill-red { color: var(--red); }
+    .star-empty { color: var(--star-empty); }
+
+    /* ── Название магазина над меню ── */
+    .seller-label {
+      padding: 12px 12px 4px;
+      display: flex; flex-direction: column; gap: 1px;
+    }
+    .seller-label .seller-name {
+      font-size: 12px; font-weight: 700; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .seller-label .seller-form {
+      font-size: 10px; color: var(--text-muted); white-space: nowrap;
+    }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- Боковое меню -->
+<nav class="icon-nav">
+  {% if seller and seller.name %}
+  <div class="seller-label">
+    <span class="seller-name">{{ seller.name }}{% if seller.form %} {{ seller.form }}{% endif %}</span>
+  </div>
+  {% endif %}
+  <a href="/" class="nav-icon {% if active_nav == 'reviews' %}active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span class="nav-label">Отзывы</span>
+    {% if pending_count and pending_count > 0 %}<span class="nav-dot"></span>{% endif %}
+  </a>
+  <a href="/analytics" class="nav-icon {% if active_nav == 'analytics' %}active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    <span class="nav-label">Аналитика</span>
+  </a>
+  <a href="/products" class="nav-icon {% if active_nav == 'products' %}active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <span class="nav-label">Товары</span>
+  </a>
+  <a href="/supplies" class="nav-icon {% if active_nav == 'supplies' %}active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    <span class="nav-label">Поставки</span>
+  </a>
+  <div style="flex:1"></div>
+  <a href="/logout" class="nav-icon" style="opacity:.55" title="Выйти из системы">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    <span class="nav-label">Выйти</span>
+  </a>
+</nav>
+
+{% block content %}{% endblock %}
+
+<div class="toast" id="toast"></div>
+
+<script>
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function stars(n, total = 5) {
+  const cls = n <= 3 ? 'star-fill-red' : 'star-fill';
+  return Array.from({length: total}, (_, i) =>
+    `<span class="${i < n ? cls : 'star-empty'}">★</span>`
+  ).join('');
+}
+
+function statusBadge(s) {
+  const map = {new:'Новый',pending_approval:'На проверке',posted:'Опубликован',rejected:'Отклонён',error:'Ошибка',auto_posting:'Публикуется'};
+  return `<span class="badge badge-${s}">${map[s]||s}</span>`;
+}
+</script>
+{% block page_scripts %}{% endblock %}
+</body>
+</html>

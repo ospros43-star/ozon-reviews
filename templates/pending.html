@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}На проверке — Ozon Review Bot{% endblock %}
+
+{% block content %}
+<h1>Отзывы на проверке</h1>
+
+<div class="filter-tabs">
+  <a href="/pending" class="filter-tab {% if not active_stars %}active{% endif %}">Все</a>
+  {% for n in [1, 2, 3] %}
+  <a href="/pending?stars={{ n }}" class="filter-tab {% if active_stars == n %}active{% endif %}">{{ n }} ★</a>
+  {% endfor %}
+</div>
+
+{% if reviews %}
+  {% for rv in reviews %}
+  <div class="review-card">
+    <div style="flex:1; min-width:0;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span class="stars">
+          {% for i in range(1, 6) %}
+            <span{% if i > rv.rating %} class="empty"{% endif %}>★</span>
+          {% endfor %}
+        </span>
+        <strong style="font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ rv.product_name or 'Без названия' }}</strong>
+      </div>
+      <div class="review-meta">{{ rv.author_name or 'Аноним' }} · {{ rv.fetched_at.strftime('%d.%m.%Y') if rv.fetched_at else '' }}</div>
+      {% if rv.review_text %}
+      <div class="review-snippet">"{{ rv.review_text[:120] }}{% if rv.review_text|length > 120 %}…{% endif %}"</div>
+      {% else %}
+      <div class="review-snippet" style="color:#9ca3af;">Без текста</div>
+      {% endif %}
+      {% if rv.generated_response %}
+      <div style="margin-top:8px; font-size:13px; color:var(--text-muted);">
+        Черновик ответа: <em>{{ rv.generated_response[:100] }}{% if rv.generated_response|length > 100 %}…{% endif %}</em>
+      </div>
+      {% endif %}
+    </div>
+    <div style="flex-shrink:0;">
+      <a href="/review/{{ rv.id }}" class="btn btn-primary btn-sm">Проверить</a>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card" style="text-align:center; padding:48px; color:var(--text-muted);">
+    <div style="font-size:40px; margin-bottom:12px;">✓</div>
+    <div style="font-size:16px; font-weight:600;">Все отзывы обработаны</div>
+    <div style="font-size:14px; margin-top:6px;">Отзывов, ожидающих проверки, нет</div>
+  </div>
+{% endif %}
+{% endblock %}

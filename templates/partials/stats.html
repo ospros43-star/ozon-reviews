@@ -1,0 +1,54 @@
+<style>
+.stats-panel { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; gap: 28px; }
+.stats-today { text-align: center; }
+.stats-today .big-num { font-size: 72px; font-weight: 700; color: var(--primary); line-height: 1; }
+.stats-today .big-label { font-size: 14px; color: var(--text-muted); margin-top: 6px; }
+.stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; max-width: 460px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+.stat-card .val { font-size: 28px; font-weight: 700; }
+.stat-card .lbl { font-size: 11px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .4px; }
+.stat-card.green .val { color: var(--green); }
+.stat-card.orange .val { color: var(--orange); }
+.stat-card.red .val { color: var(--red); }
+.coverage-bar-wrap { width: 100%; max-width: 460px; }
+.coverage-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.coverage-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.coverage-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width .5s; }
+.stats-footer { font-size: 11px; color: var(--text-light); }
+</style>
+
+<div class="stats-panel" id="stats-panel">
+  <div class="stats-today">
+    <div class="big-num" id="sp-posted-today">{{ posted_today }}</div>
+    <div class="big-label">отвечено сегодня</div>
+  </div>
+
+  <div class="stats-cards">
+    <div class="stat-card orange">
+      <div class="val" id="sp-pending">{{ pending_unarchived }}</div>
+      <div class="lbl">Ожидают</div>
+    </div>
+    <div class="stat-card green">
+      <div class="val" id="sp-posted-total">{{ posted_total }}</div>
+      <div class="lbl">Отвечено</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" id="sp-fetched-today">{{ fetched_today }}</div>
+      <div class="lbl">Новых сегодня</div>
+    </div>
+  </div>
+
+  <div class="coverage-bar-wrap">
+    <div class="coverage-label">
+      <span>Охват</span>
+      <span id="sp-coverage">{{ coverage_pct }}%</span>
+    </div>
+    <div class="coverage-bar">
+      <div class="coverage-fill" id="sp-coverage-fill" style="width: {{ coverage_pct }}%"></div>
+    </div>
+  </div>
+
+  <div class="stats-footer">Всего отзывов в базе: <strong id="sp-total">{{ total }}</strong>
+    {% if error_count > 0 %} · <span style="color:var(--red)">Ошибок: {{ error_count }}</span>{% endif %}
+  </div>
+</div>

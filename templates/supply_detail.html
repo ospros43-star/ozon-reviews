@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Поставка №{{ plan.number }}{% endblock %}
+
+{% block extra_styles %}
+.det-wrap { flex:1; min-height:0; overflow-y:auto; background:var(--bg); padding:24px; }
+.det-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px 28px; max-width:1000px; margin:0 auto; }
+.det-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; }
+.det-num { font-size:22px; font-weight:700; color:var(--text); }
+.det-meta { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); margin-bottom:20px; }
+.det-meta-item { display:flex; flex-direction:column; gap:2px; }
+.det-meta-lbl { font-size:11px; color:var(--text-muted); text-transform:uppercase; font-weight:600; letter-spacing:.4px; }
+.det-meta-val { font-size:14px; font-weight:600; color:var(--text); }
+.det-table { width:100%; border-collapse:collapse; }
+.det-table thead th { padding:9px 12px; text-align:left; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; border-bottom:2px solid var(--border); background:var(--surface2); }
+.det-table thead th.right { text-align:right; }
+.det-table tbody tr { border-bottom:1px solid var(--border); }
+.det-table tbody tr:hover { background:var(--surface2); }
+.det-table td { padding:10px 12px; font-size:13px; }
+.det-table td.right { text-align:right; }
+.status-pill { display:inline-block; padding:4px 12px; border-radius:20px; font-size:13px; font-weight:500; }
+.status-planning { background:#fff3cd; color:#856404; }
+{% endblock %}
+
+{% block content %}
+<div class="det-wrap">
+  <div style="max-width:1000px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <a href="/supplies" style="color:var(--text-muted);text-decoration:none;font-size:13px">← Поставки</a>
+    </div>
+
+    <div class="det-card">
+      <div class="det-header">
+        <div>
+          <div class="det-num">Поставка №{{ plan.number }}</div>
+          <div style="margin-top:6px">
+            <span class="status-pill status-{{ plan.status }}">Планируется</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Печать</button>
+      </div>
+
+      <div class="det-meta">
+        <div class="det-meta-item">
+          <span class="det-meta-lbl">Дата поставки</span>
+          <span class="det-meta-val">{{ plan.delivery_date.strftime('%d.%m.%Y') if plan.delivery_date else '—' }}</span>
+        </div>
+        <div class="det-meta-item">
+          <span class="det-meta-lbl">Создана</span>
+          <span class="det-meta-val">{{ plan.created_at.strftime('%d.%m.%Y') }}</span>
+        </div>
+        <div class="det-meta-item">
+          <span class="det-meta-lbl">SKU</span>
+          <span class="det-meta-val">{{ plan.sku_count }}</span>
+        </div>
+        <div class="det-meta-item">
+          <span class="det-meta-lbl">Товаров</span>
+          <span class="det-meta-val">{{ plan.total_units }}</span>
+        </div>
+        {% if plan.tags %}
+        <div class="det-meta-item">
+          <span class="det-meta-lbl">Кластеры</span>
+          <span class="det-meta-val">{{ plan.tags | map(attribute='name') | join(', ') }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <table class="det-table">
+        <thead>
+          <tr>
+            <th style="width:44px"></th>
+            <th>Товар</th>
+            <th>Артикул</th>
+            <th class="right">Кол-во</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in plan.items %}
+          <tr>
+            <td>
+              {% if item.image_url %}
+              <img src="{{ item.image_url }}" style="width:36px;height:36px;border-radius:6px;object-fit:cover" onerror="this.style.display='none'">
+              {% else %}
+              <div style="width:36px;height:36px;border-radius:6px;background:var(--surface2);display:flex;align-items:center;justify-content:center">📦</div>
+              {% endif %}
+            </td>
+            <td>{{ item.product_name or '—' }}</td>
+            <td style="color:var(--text-muted)">{{ item.offer_id }}</td>
+            <td class="right"><strong>{{ item.units }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
