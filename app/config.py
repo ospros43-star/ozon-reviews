@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     app_username: str = "admin"
     app_password: str = "password"
+    sync_secret: str = ""  # секрет для /api/sync-cookie эндпоинта
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

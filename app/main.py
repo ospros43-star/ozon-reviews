@@ -140,7 +140,7 @@ class _AuthMiddleware(BaseHTTPMiddleware):
     """Проверяет авторизацию. Запускается после SessionMiddleware."""
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        public = path.startswith("/login") or path.startswith("/static") or path == "/favicon.ico"
+        public = path.startswith("/login") or path.startswith("/static") or path == "/favicon.ico" or path == "/api/sync-cookie"
         if not public and not request.session.get("user"):
             accept = request.headers.get("accept", "")
             if "text/html" in accept or not path.startswith("/api"):
@@ -178,6 +178,22 @@ async def login_submit(request: Request, username: str = Form(...), password: st
 async def logout(request: Request):
     logout_user(request)
     return RedirectResponse("/login", status_code=302)
+
+
+@app.post("/api/sync-cookie")
+async def sync_cookie(request: Request):
+    """Mac пушит сюда свежие куки Ozon каждые 20 минут."""
+    from app.config import settings as _cfg
+    secret = request.headers.get("x-sync-secret", "")
+    if not _cfg.sync_secret or secret != _cfg.sync_secret:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    body = await request.json()
+    cookie = body.get("cookie", "").strip()
+    if not cookie:
+        return JSONResponse({"error": "cookie required"}, status_code=400)
+    _cfg.ozon_cookie = cookie
+    logging.info("Куки Ozon обновлены удалённо (%d символов)", len(cookie))
+    return {"ok": True, "length": len(cookie)}
 
 
 @app.post("/api/reviews/import-excel")
