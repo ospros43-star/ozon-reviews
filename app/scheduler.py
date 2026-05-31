@@ -76,17 +76,19 @@ async def _poll_job() -> None:
         db.close()
 
 
-def _session_keepalive_job() -> None:
-    """Раз в 10 мин делает GET к seller.ozon.ru чтобы Ozon выдал свежий access-token.
-    Критично для работы после сна ноутбука (токен живёт ~1ч)."""
-    try_restore_session()
+async def _session_keepalive_job() -> None:
+    """Раз в 10 мин делает GET к seller.ozon.ru чтобы Ozon выдал свежий access-token."""
+    loop = asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, try_restore_session)
+    except Exception as exc:
+        logger.warning("Keepalive ошибка: %s", exc)
 
 
 def start_scheduler() -> None:
-    # Читаем куки из Safari и сразу делаем GET к seller.ozon.ru за свежим токеном
     logger.info("Инициализация сессии Ozon...")
     refresh_from_safari()  # читаем из Safari-базы (быстро, без сети)
-    try_restore_session()  # GET к seller.ozon.ru → свежий access-token
+    # try_restore_session() перенесён в _poll_job (async, через executor) — не блокирует event loop
 
     # Регулярный опрос Ozon
     # coalesce=True: если пропущено несколько итераций (сон ноутбука) — запускаем только одну

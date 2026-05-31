@@ -80,7 +80,8 @@ async def lifespan(app: FastAPI):
     init_db()
     start_scheduler()
 
-    seller = _fetch_seller_info()
+    loop = asyncio.get_event_loop()
+    seller = await loop.run_in_executor(None, _fetch_seller_info)
     templates.env.globals["seller"] = seller
 
     asyncio.create_task(_backfill_images_task())
