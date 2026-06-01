@@ -135,23 +135,34 @@ async def _warmup_products_cache():
 
 from app.config import settings as _app_settings
 from app.auth import check_credentials, is_authenticated, login_user, logout_user
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
-class _AuthMiddleware(BaseHTTPMiddleware):
-    """Проверяет авторизацию. Запускается после SessionMiddleware."""
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        public = path.startswith("/login") or path.startswith("/static") or path == "/favicon.ico" or path == "/api/sync-cookie"
-        if not public and not request.session.get("user"):
-            accept = request.headers.get("accept", "")
-            if "text/html" in accept or not path.startswith("/api"):
-                return RedirectResponse("/login", status_code=302)
-            return JSONResponse({"error": "unauthorized"}, status_code=401)
-        return await call_next(request)
+class _AuthMiddleware:
+    """Чистый ASGI middleware без BaseHTTPMiddleware (нет бага с зависанием)."""
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            public = (path.startswith("/login") or path.startswith("/static")
+                      or path == "/favicon.ico" or path == "/api/sync-cookie")
+            if not public:
+                session = scope.get("session", {})
+                if not session.get("user"):
+                    from starlette.responses import Response
+                    headers = dict(scope.get("headers", []))
+                    accept = headers.get(b"accept", b"").decode()
+                    if "text/html" in accept or not path.startswith("/api"):
+                        response = RedirectResponse("/login", status_code=302)
+                    else:
+                        response = JSONResponse({"error": "unauthorized"}, status_code=401)
+                    await response(scope, receive, send)
+                    return
+        await self.app(scope, receive, send)
 
 app = FastAPI(title="Ozon Review Bot", lifespan=lifespan)
-# Порядок add_middleware — LIFO: SessionMiddleware (добавлен последним) запускается первым,
-# затем _AuthMiddleware уже имеет доступ к request.session
+# LIFO: SessionMiddleware (добавлен последним) запускается первым → session доступна в _AuthMiddleware
 app.add_middleware(_AuthMiddleware)
 app.add_middleware(SessionMiddleware, secret_key=_app_settings.secret_key, max_age=86400 * 30)
 
