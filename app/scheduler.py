@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -98,41 +98,37 @@ def start_scheduler() -> None:
         trigger=IntervalTrigger(seconds=settings.poll_interval_seconds),
         id="ozon_poll",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc),
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=5),
         misfire_grace_time=3600,
         coalesce=True,
     )
 
-    # Keepalive сессии: каждые 10 мин GET к seller.ozon.ru → свежий access-token
-    # (access-token живёт ~1ч, keepalive гарантирует что он не протухнет)
     scheduler.add_job(
         _session_keepalive_job,
         trigger=IntervalTrigger(minutes=10),
         id="session_keepalive",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc),
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=15),
         misfire_grace_time=3600,
         coalesce=True,
     )
 
-    # Прогрев кэша аналитики каждые 4 минуты (TTL кэша = 5 мин)
     scheduler.add_job(
         _analytics_warm_job,
         trigger=IntervalTrigger(minutes=4),
         id="analytics_warm",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc),
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=10),
         misfire_grace_time=3600,
         coalesce=True,
     )
 
-    # Обновление кэша остатков каждые 2 часа
     scheduler.add_job(
         _stocks_refresh_job,
         trigger=IntervalTrigger(hours=2),
         id="stocks_refresh",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc),
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
         misfire_grace_time=3600,
         coalesce=True,
     )
